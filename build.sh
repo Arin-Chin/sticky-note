@@ -120,6 +120,9 @@ mkdir -p "$ROOT"
 cp -a "$APP_DIR/." "$ROOT/"
 cp -f "$WORK/app.asar" "$ROOT/resources/app.asar"
 rm -f "$ROOT/resources/app.asar.orig"
+# 应用菜单用的顶层图标（asar 内的 logo.png 只影响窗口/托盘）
+cp -f "$WORK/logo512.png" "$ROOT/logo.png"
+cp -f "$WORK/logo512.png" "$ROOT/logo-512.png"
 
 cat > "$ROOT/sticky-note.sh" <<'EOF'
 #!/bin/bash
