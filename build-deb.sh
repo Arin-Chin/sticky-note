@@ -3,9 +3,10 @@
 #
 #   bash build-deb.sh [图标.svg]
 #
-# 产物: ./todo-list_0.2.3+sticky1_arm64.deb
-# 包名沿用原包 todo-list，版本号更高 => 正常升级安装，不会留下两个图标：
-#   sudo dpkg -i todo-list_0.2.3+sticky1_arm64.deb
+# 产物: ./todo-list_1.1.0_arm64.deb
+#
+# 包名沿用原包 todo-list，版本号更高（1.1.0 > 0.2.3）=> 正常升级安装，不会留下两个图标：
+#   sudo dpkg -i todo-list_1.1.0_arm64.deb
 #
 # 改动: 去掉打赏图标 / 标题栏多余文字 / 应用名改 sticky note / 换新图标
 # 用户数据目录不变: ~/.config/todo-list
@@ -15,7 +16,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 ICON_SVG="${1:-/home/user/Downloads/sticky-note.svg}"
-VERSION="0.2.3+sticky1"
+VERSION="1.1.0"
 PKG="todo-list"
 ARCH="$(dpkg --print-architecture)"
 APP_NAME="sticky note"
@@ -36,6 +37,9 @@ if [ -z "$APP_DIR" ]; then
 fi
 [ -n "$APP_DIR" ] || APP_DIR="/opt/桌面便签"
 [ -x "$APP_DIR/todo-list" ] || die "找不到原程序: $APP_DIR/todo-list"
+
+# 安装后的固定路径（与包内 chrome-sandbox / 自启动 / 启动项一致）
+INSTALL_DIR="/opt/桌面便签"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -121,10 +125,10 @@ SN_ASAR="$WORK/app.asar" SN_LOGO="$WORK/logo512.png" SN_TRAY="$WORK/tray32.png" 
 ELECTRON_NO_ASAR=1 ELECTRON_RUN_AS_NODE=1 "$APP_DIR/todo-list" "$WORK/icons.js"
 
 echo "[4/6] 拷贝程序目录到暂存区"
-mkdir -p "$STAGE/opt"
-cp -a "$APP_DIR" "$STAGE/opt/"
-cp -f "$WORK/app.asar" "$STAGE/opt/桌面便签/resources/app.asar"
-rm -f "$STAGE/opt/桌面便签/resources/app.asar.orig"
+mkdir -p "$STAGE$INSTALL_DIR"
+cp -a "$APP_DIR/." "$STAGE$INSTALL_DIR/"
+cp -f "$WORK/app.asar" "$STAGE$INSTALL_DIR/resources/app.asar"
+rm -f "$STAGE$INSTALL_DIR/resources/app.asar.orig"
 
 echo "[5/6] 写入启动项 / 图标 / 控制信息"
 DESK="$STAGE/usr/share/applications/todo-list.desktop"
@@ -133,8 +137,8 @@ cat > "$DESK" <<EOF
 [Desktop Entry]
 Name=$APP_NAME
 Name[zh_CN]=$APP_NAME
-Comment=简洁高效的本地便签（无广告）
-Exec="$APP_DIR/todo-list" %U
+Comment=简洁高效的本地便签
+Exec="$INSTALL_DIR/todo-list" %U
 Terminal=false
 Type=Application
 Icon=todo-list
@@ -162,9 +166,7 @@ Installed-Size: $INSTALLED_SIZE
 Section: default
 Priority: optional
 Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0, deepin-elf-verify (>= 1.1.10-1)
-Description: $APP_NAME - 基于「桌面便签」的去广告本地版
- 移除打赏图标与标题栏多余文字，应用名改为 $APP_NAME。
- 仅本地使用，数据目录与原版相同（~/.config/todo-list）。
+Description: $APP_NAME - 简洁高效的本地便签
 EOF
 
 cat > "$STAGE/DEBIAN/postinst" <<'EOF'

@@ -86,10 +86,33 @@ const match = re => {
 function rep(p, from, to, expect) {
   const s = get(p);
   const n = s.split(from).length - 1;
-  if (n === 0) throw new Error(p + ' 中找不到 "' + from + '"（版本不匹配？）');
+  if (n === 0) {
+    if (to && s.indexOf(to) >= 0) { console.log('  ' + p + ' : 已处理，跳过'); return; }
+    throw new Error(p + ' 中找不到 "' + from + '"（版本不匹配？）');
+  }
   if (expect != null && n !== expect) throw new Error(p + ' 中 "' + from + '" 出现 ' + n + ' 次，预期 ' + expect + ' 次（版本不匹配？）');
   set(p, s.split(from).join(to));
   console.log('  ' + p + ' : ' + from + '  ->  ' + to + ' (' + n + ' 处)');
+}
+// 在所有文件中查找替换，只校验总数
+function repAll(from, to, expect) {
+  let total = 0;
+  for (const f of files) {
+    const s = f.data.toString('utf8');
+    const n = s.split(from).length - 1;
+    if (!n) continue;
+    f.data = Buffer.from(s.split(from).join(to), 'utf8');
+    total += n;
+  }
+  if (total === 0) {
+    // 删除类替换（to 为空）无法用“目标已存在”判断，找不到即视为已完成
+    if (to === '') { console.log('  [全部文件] 未找到或已处理，跳过: ' + from); return; }
+    const all = files.map(f => f.data.toString('utf8')).join('\n');
+    if (all.indexOf(to) >= 0) { console.log('  [全部文件] 已处理，跳过: ' + from); return; }
+    throw new Error('asar 中找不到 "' + from + '"');
+  }
+  if (expect != null && total !== expect) throw new Error('"' + from + '" 共出现 ' + total + ' 次，预期 ' + expect + ' 次（版本不匹配？）');
+  console.log('  [全部文件] ' + from + '  ->  ' + to + ' (' + total + ' 处)');
 }
 
 // 1) 应用名 / 标题
@@ -104,6 +127,10 @@ rep(appJs,            '"productName":"桌面便签"', '"productName":"sticky not
 rep(appJs,            '"description":"桌面便签 - ', '"description":"sticky note - ', 1);
 rep('/background.js', '"productName":"桌面便签"', '"productName":"sticky note"', 1);
 rep('/background.js', 'title:"桌面便签', 'title:"sticky note', null);
+// 版本号 V1.1.0
+rep('/package.json',  '"version": "0.2.3"', '"version": "1.1.0"', 1);
+rep(appJs,            '"version":"0.2.3"', '"version":"1.1.0"', 1);
+rep('/background.js', '"version":"0.2.3"', '"version":"1.1.0"', 1);
 
 // 2) 隐藏 ☕ 图标与标题栏杂项文字（只加 CSS，不改 UI 逻辑）
 const cssOld = get(appCss);
@@ -111,18 +138,50 @@ if (cssOld.indexOf('coffee-btn{display:none') < 0) {
   set(appCss, cssOld + '\n/* sticky-note patch */\n.drag-nav b,.drag-nav i,.tool-btn.coffee-btn{display:none!important}\n');
   console.log('  ' + appCss + ' : 附加隐藏规则');
 }
+// 3) 去除原程序作者 / 打赏 / 推广信息
+const aboutJs = match(/^\/js\/chunk-ad7ee4c2\.[0-9a-f]+\.js$/);
+rep('/package.json',   '  "author": "xiaolin",\n', '', 1);
+rep('/package.json',   ',\n  "homepage": "https://github.com/xiaolin/todo-list"', '', 1);
+rep(appJs,             '"author":"xiaolin"', '"author":""', 1);
+rep('/background.js',  '"author":"xiaolin"', '"author":""', 1);
+// 「使用指南」窗口底部: sticky note v0.2.3 / Powered by 万能小林子
+rep(aboutJs, ',t("div",{staticClass:"version-info"},[t("p",[s._v(s._s(s.productName)+" v"+s._s(s.version))]),t("p",{staticClass:"author"},[s._v("Powered by 万能小林子")])])', '', 1);
+// 工具栏 ☕ 按钮（含“请作者喝咖啡”提示与点击处理器）
+rep(appJs, 't("span",{staticClass:"tool-btn coffee-btn",attrs:{title:"请作者喝咖啡"},on:{click:e.showDonate}},[e._v("☕")]),', '', 1);
+// 首次运行的示例待办里的推广文案
+rep('/background.js', '【重要】给项目点一个star ☕请作者喝咖啡', '欢迎使用 sticky note', 1);
+// 打赏窗口文案与支付地址（入口已移除，这里清掉残留字符串）
+repAll('☕ 请作者喝咖啡', '☕');
+repAll('如果桌面便签帮到了你，可以请作者喝杯咖啡支持一下~', '');
+repAll('必须支持！请作者喝咖啡~ ☕', '');
+repAll('感谢投喂！这杯小咖啡让我精神一振~ ☕', '');
+repAll('哇！中杯咖啡，双倍能量！谢谢你！☕☕', '');
+repAll('太棒了！大杯咖啡，今天元气满满！☕☕☕', '');
+repAll('感谢你的慷慨支持！动力满满！☕☕☕', '');
+repAll('桌面便签打赏', 'sticky note');
+repAll('桌面便签 - 请作者喝咖啡', 'sticky note');
+repAll('请作者喝咖啡', '');
+repAll('www.xiaolinwl.com/payment/success', 'example.invalid/payment/success');
+repAll('www.xiaolinwl.com/payment/notify', 'example.invalid/payment/notify');
+// sourcemap 里也残留作者信息，一并清掉
+repAll('Powered by 万能小林子', '');
+repAll('万能小林子', '');
+repAll('"author":"xiaolin"', '"author":""');
 }
 
-// 3) 自检：确认补丁生效、数量没被改坏
+// 4) 自检：确认补丁生效、数量没被改坏
 const all = files.map(f => f.data.toString('utf8')).join('\n');
 for (const bad of ['"productName":"桌面便签"', 'title:"桌面便签', '"productName": "桌面便签"']) {
   if (all.indexOf(bad) >= 0) throw new Error('补丁未生效，仍存在: ' + bad);
+}
+for (const bad of ['xiaolin', '小林子', 'Powered by', '请作者喝咖啡']) {
+  if (all.indexOf(bad) >= 0) throw new Error('作者信息未清除干净: ' + bad);
 }
 if (all.indexOf('coffee-btn{display:none') < 0) throw new Error('CSS 隐藏规则未写入');
 
 if (verifyOnly) { console.log('  校验通过'); process.exit(0); }
 
-// 4) 重新打包 asar（与原格式一致：pickle 头 + 顺序数据）
+// 5) 重新打包 asar（与原格式一致：pickle 头 + 顺序数据）
 const root = { files: {} };
 let offset = 0;
 for (const f of files) {

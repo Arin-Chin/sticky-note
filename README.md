@@ -14,6 +14,8 @@ UOS / Deepin「桌面便签」（Electron，包名 `todo-list`）的去广告本
 | 右上角标语 | 记清，办明，不遗漏 | 隐藏 |
 | 应用名（标题/启动器/托盘提示） | 桌面便签 | sticky note |
 | 图标 | 原图标 | 自定义 SVG（启动器 + 托盘 + 窗口） |
+| 使用指南底部 | `sticky note v0.2.3` + `Powered by 万能小林子` | 整块移除 |
+| 作者/推广信息 | package.json 作者、GitHub 主页、打赏文案与支付地址 | 全部清除 |
 | 待办 / 已完成 / 导出 / 锁定 / 设置 | 有 | 不变 |
 | 数据目录 | `~/.config/todo-list` | **不变**，历史便签照常 |
 
@@ -21,17 +23,17 @@ UOS / Deepin「桌面便签」（Electron，包名 `todo-list`）的去广告本
 
 ## 一键安装
 
-安装包：`todo-list_0.2.3+sticky1_arm64.deb`（Release 附件，62 MB）
+安装包：`todo-list_1.1.0_arm64.deb`（Release 附件，62 MB）
 
 **方式一：双击** —— 用系统「软件包安装器」打开 `.deb`，点安装。
 
 **方式二：命令行**
 
 ```bash
-sudo dpkg -i todo-list_0.2.3+sticky1_arm64.deb
+sudo dpkg -i todo-list_1.1.0_arm64.deb
 ```
 
-包名沿用原包 `todo-list`、版本号更高（`0.2.3+sticky1 > 0.2.3`），属于正常升级安装：
+包名沿用原包 `todo-list`、版本号更高（`1.1.0 > 0.2.3`），属于正常升级安装：
 不会残留两个启动图标，`~/.config/todo-list` 里的便签数据保持不动。
 
 装完启动器里就是 **sticky note**。
@@ -52,7 +54,7 @@ bash build-deb.sh                          # 用 /home/user/Downloads/sticky-not
 bash build-deb.sh /path/to/your-icon.svg   # 换自己的图标
 ```
 
-产物 `todo-list_0.2.3+sticky1_arm64.deb`，脚本会打印 SHA256。
+产物 `todo-list_1.1.0_arm64.deb`，脚本会打印 SHA256。
 程序装在非默认目录时：`SN_APP_DIR=/path/to/桌面便签 bash build-deb.sh`
 
 ## 不用安装包，只打补丁（可选）
@@ -73,15 +75,17 @@ bash install.sh build out.asar  # 只生成补丁包，不写系统
    ```css
    .drag-nav b, .drag-nav i, .tool-btn.coffee-btn { display: none !important; }
    ```
-4. 用 `rsvg-convert` 把 SVG 渲染成 16–512px PNG，替换 asar 内 `logo.png` / `tray.png` / `icons/*`
-5. 自检通过后重新打包，连同图标和启动项一起打成 `.deb`
+4. 清除作者/推广信息：`author`、`homepage`、`Powered by 万能小林子`、打赏文案与 `xiaolinwl.com` 支付地址（含 sourcemap）
+5. 用 `rsvg-convert` 把 SVG 渲染成 16–512px PNG，替换 asar 内 `logo.png` / `tray.png` / `icons/*`
+6. 自检通过后重新打包，连同图标和启动项一起打成 `.deb`
 
 替换处数量对不上会直接报错退出，不会写出半成品。
 
 ## 兼容性
 
 - 在 UOS Desktop 20 Professional 上实测：原版 `todo-list` v0.2.3 / arm64 / Electron 13
-- 脚本按 `app.<hash>.js` 通配定位文件，小版本更新后 hash 变化仍可用；逻辑改动大时会报「版本不匹配」并安全退出
+- 脚本按 `app.<hash>.js` 通配定位文件，替换是幂等的，可重复执行
+- 逻辑改动大时会报「版本不匹配」并安全退出，不会写出半成品
 - 包名保持 `todo-list` 是为了覆盖升级与共用数据目录；不要同时保留两个不同名的包
 
 ## 免责声明
