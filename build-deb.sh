@@ -4,13 +4,12 @@
 #   bash build-deb.sh [图标.svg]
 #
 # 产物: ./todo-list_1.1.0_arm64.deb
-#
 # 包名沿用原包 todo-list，版本号更高（1.1.0 > 0.2.3）=> 正常升级安装，不会留下两个图标：
 #   sudo dpkg -i todo-list_1.1.0_arm64.deb
 #
-# 改动: 去掉打赏图标 / 标题栏多余文字 / 应用名改 sticky note / 换新图标
+# 改动: 删除打赏/捐赠功能、清除作者与推广信息、应用名 sticky note、自定义图标
 # 用户数据目录不变: ~/.config/todo-list
-# 不联网、不重新编译，只读本机已安装的程序文件。
+# 不联网、不重新编译，只读本机已安装（或 SN_APP_DIR 指定）的程序文件。
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -20,6 +19,7 @@ VERSION="1.1.0"
 PKG="todo-list"
 ARCH="$(dpkg --print-architecture)"
 APP_NAME="sticky note"
+INSTALL_DIR="/opt/桌面便签"
 OUT="$PWD/${PKG}_${VERSION}_${ARCH}.deb"
 SIZES="16 24 32 48 64 96 128 256 512"
 
@@ -29,17 +29,9 @@ die() { echo "错误: $*" >&2; exit 1; }
 command -v dpkg-deb >/dev/null || die "缺少 dpkg-deb"
 command -v rsvg-convert >/dev/null || die "缺少 rsvg-convert（apt install librsvg2-bin）"
 
-# 定位原程序目录
-APP_DIR="${SN_APP_DIR:-}"
-if [ -z "$APP_DIR" ]; then
-  exec_path="$(sed -n 's/^Exec="\?\([^" ]*todo-list\)"\?.*/\1/p' /usr/share/applications/todo-list.desktop 2>/dev/null | head -1 || true)"
-  [ -n "$exec_path" ] && APP_DIR="$(dirname "$exec_path")"
-fi
-[ -n "$APP_DIR" ] || APP_DIR="/opt/桌面便签"
-[ -x "$APP_DIR/todo-list" ] || die "找不到原程序: $APP_DIR/todo-list"
-
-# 安装后的固定路径（与包内 chrome-sandbox / 自启动 / 启动项一致）
-INSTALL_DIR="/opt/桌面便签"
+# 源程序目录：默认 /opt/桌面便签，可用 SN_APP_DIR 指定（例如从官方 deb 解包出来的目录）
+APP_DIR="${SN_APP_DIR:-$INSTALL_DIR}"
+[ -x "$APP_DIR/todo-list" ] || die "找不到原程序: $APP_DIR/todo-list（可用 SN_APP_DIR 指定）"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -55,7 +47,7 @@ for s in $SIZES; do
   rsvg-convert -w "$s" -h "$s" "$ICON_SVG" -o "$WORK/icons/$s.png"
 done
 rsvg-convert -w 512 -h 512 "$ICON_SVG" -o "$WORK/logo512.png"
-rsvg-convert -w 32  -h 32  "$ICON_SVG" -o "$WORK/tray32.png"
+rsvg-convert -w 32 -h 32 "$ICON_SVG" -o "$WORK/tray32.png"
 echo "      $SIZES + 托盘 32px"
 
 echo "[3/6] 替换 asar 内的托盘 / 窗口 / favicon 图标"
@@ -130,7 +122,7 @@ cp -a "$APP_DIR/." "$STAGE$INSTALL_DIR/"
 cp -f "$WORK/app.asar" "$STAGE$INSTALL_DIR/resources/app.asar"
 rm -f "$STAGE$INSTALL_DIR/resources/app.asar.orig"
 
-echo "[5/6] 写入启动项 / 图标 / 控制信息"
+echo "[5/6] 写入启动项 / 图标 / 文档 / 控制信息"
 DESK="$STAGE/usr/share/applications/todo-list.desktop"
 mkdir -p "$(dirname "$DESK")"
 cat > "$DESK" <<EOF
@@ -155,16 +147,64 @@ done
 mkdir -p "$STAGE/usr/share/icons/hicolor/scalable/apps"
 cp -f "$ICON_SVG" "$STAGE/usr/share/icons/hicolor/scalable/apps/todo-list.svg"
 
-mkdir -p "$STAGE/DEBIAN"
-INSTALLED_SIZE="$(du -sk "$STAGE/opt" "$STAGE/usr" | awk '{s+=$1} END{print s}')"
+mkdir -p "$STAGE/DEBIAN" "$STAGE/usr/share/doc/$PKG"
+INSTALLED_SIZE="$(du -sk "$STAGE$INSTALL_DIR" "$STAGE/usr" | awk '{s+=$1} END{print s}')"
+
+cat > "$STAGE/usr/share/doc/$PKG/copyright" <<'EOF'
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: sticky note
+Source: https://github.com/Arin-Chin/sticky-note
+
+Files: *
+Copyright: 2026 Arin-Chin
+License: MIT
+ Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the
+ Software is furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
+Files: opt/*
+Copyright: original authors
+License: proprietary
+ 本地化修改版本，仅供个人使用。原程序版权归其作者所有；
+ 本包不重新分发原程序，而是由使用者本机已安装的副本重新打包。
+EOF
+
+{
+  echo "$PKG ($VERSION) unstable; urgency=medium"
+  echo
+  echo "  * 删除打赏/捐赠功能与全部作者、推广信息"
+  echo "  * 删除全部 sourcemap（开发产物，含原始源码）"
+  echo "  * 使用指南移除版本与作者信息"
+  echo "  * 应用名改为 sticky note，改用自定义图标"
+  echo
+  echo " -- Arin-Chin <Arin-Chin@users.noreply.github.com>  $(date -R)"
+} > "$WORK/changelog"
+gzip -9n -c "$WORK/changelog" > "$STAGE/usr/share/doc/$PKG/changelog.Debian.gz"
+chmod 644 "$STAGE/usr/share/doc/$PKG/copyright" "$STAGE/usr/share/doc/$PKG/changelog.Debian.gz"
+
 cat > "$STAGE/DEBIAN/control" <<EOF
 Package: $PKG
 Version: $VERSION
 Architecture: $ARCH
 Maintainer: Arin-Chin <Arin-Chin@users.noreply.github.com>
 Installed-Size: $INSTALLED_SIZE
-Section: default
+Section: utils
 Priority: optional
+Homepage: https://github.com/Arin-Chin/sticky-note
 Depends: libgtk-3-0, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0, libuuid1, libsecret-1-0, deepin-elf-verify (>= 1.1.10-1)
 Description: $APP_NAME - 简洁高效的本地便签
 EOF
@@ -178,6 +218,7 @@ update-desktop-database /usr/share/applications || true
 gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
 exit 0
 EOF
+
 cat > "$STAGE/DEBIAN/postrm" <<'EOF'
 #!/bin/bash
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then

@@ -74,6 +74,11 @@ const files = [];
 
 const byPath = {};
 for (const f of files) byPath[f.path] = f;
+const removeFile = p => {
+  const i = files.findIndex(f => f.path === p);
+  if (i >= 0) { files.splice(i, 1); delete byPath[p]; console.log('  删除文件 ' + p); }
+  else console.log('  文件不存在，跳过 ' + p);
+};
 
 const get = p => { if (!byPath[p]) throw new Error('asar 中缺少 ' + p); return byPath[p].data.toString('utf8'); };
 const set = (p, s) => { byPath[p].data = Buffer.from(s, 'utf8'); };
@@ -132,10 +137,10 @@ rep('/package.json',  '"version": "0.2.3"', '"version": "1.1.0"', 1);
 rep(appJs,            '"version":"0.2.3"', '"version":"1.1.0"', 1);
 rep('/background.js', '"version":"0.2.3"', '"version":"1.1.0"', 1);
 
-// 2) 隐藏 ☕ 图标与标题栏杂项文字（只加 CSS，不改 UI 逻辑）
+// 2) 隐藏标题栏杂项文字（左上角应用名、右上角标语）
 const cssOld = get(appCss);
-if (cssOld.indexOf('coffee-btn{display:none') < 0) {
-  set(appCss, cssOld + '\n/* sticky-note patch */\n.drag-nav b,.drag-nav i,.tool-btn.coffee-btn{display:none!important}\n');
+if (cssOld.indexOf('.drag-nav b,.drag-nav i{display:none') < 0) {
+  set(appCss, cssOld + '\n/* sticky-note patch */\n.drag-nav b,.drag-nav i{display:none!important}\n');
   console.log('  ' + appCss + ' : 附加隐藏规则');
 }
 // 3) 去除原程序作者 / 打赏 / 推广信息
@@ -167,6 +172,36 @@ repAll('www.xiaolinwl.com/payment/notify', 'example.invalid/payment/notify');
 repAll('Powered by 万能小林子', '');
 repAll('万能小林子', '');
 repAll('"author":"xiaolin"', '"author":""');
+// 6) 彻底删除打赏 / 捐赠功能
+// 6.1 渲染层：路由、入口方法、独立窗口判定（☕ 按钮已在第 3 步删除）
+rep(appJs, '{path:"/donate",name:"Donate",component:()=>Promise.all([n.e("chunk-2862e3e5"),n.e("chunk-3d3df498")]).then(n.bind(null,"8125"))},', '', 1);
+rep(appJs, 'showDonate(){s["ipcRenderer"].invoke("openDonateWindow")},', '', 1);
+rep(appJs, '"/donate"===this.$route.path||', '', 1);
+// 6.1b 移除 webpack 运行时的 chunk 映射（含预取表）
+rep(appJs, '"chunk-3d3df498":"e3dd88ea",', '', 1);
+rep(appJs, '"chunk-3d3df498":"01d2e32f",', '', 1);
+rep(appJs, '"chunk-3d3df498":1,', '', 1);
+// 6.2 asar 内不再需要打赏页面文件
+removeFile('/js/chunk-3d3df498.e3dd88ea.js');
+removeFile('/js/chunk-3d3df498.e3dd88ea.js.map');
+removeFile('/css/chunk-3d3df498.01d2e32f.css');
+// 6.3 index.html 预加载链接
+rep('/index.html', '<link href="app://./css/chunk-3d3df498.01d2e32f.css" rel="prefetch">', '', 1);
+rep('/index.html', '<link href="app://./js/chunk-3d3df498.e3dd88ea.js" rel="prefetch">', '', 1);
+// 6.4 主进程：打赏窗口与支付接口
+rep('/background.js', ',n.ipcMain.handle("openDonateWindow",async()=>{!X||X.isDestroyed()?await async function(){if(X&&!X.isDestroyed())return void X.focus();const e="linux"===process.platform,t=Z.opacity||1,r=t<1&&!te();X=new n.BrowserWindow({width:380,height:540,minWidth:340,minHeight:480,resizable:!0,minimizable:!1,maximizable:!1,frame:!1,transparent:r,hasShadow:!r,...e?{}:{type:"toolbar"},skipTaskbar:!0,title:"sticky note - 打赏",show:!1,backgroundColor:r?"#00000000":"#2d2d2d",webPreferences:{nodeIntegration:!0,contextIsolation:!1,webSecurity:!1}});try{X.setSkipTaskbar(!0)}catch(e){}try{t<1&&X.setOpacity(t)}catch(e){}process.env.WEBPACK_DEV_SERVER_URL?await X.loadURL(process.env.WEBPACK_DEV_SERVER_URL+"#/donate"):(g("app"),await X.loadURL("app://./index.html#/donate")),X.show(),X.focus(),X.on("closed",()=>{X=null})}():X.focus()}),', ',', 1);
+rep('/background.js', ',X&&!X.isDestroyed()&&X.setOpacity(r)', '', 1);
+rep('/background.js', 'n.ipcMain.handle("createPaymentOrder",async(e,t)=>{try{const{amount:e,subject:n,body:i,payment:s="wechat"}=t,o="TD"+Date.now()+Math.random().toString(36).substr(2,6).toUpperCase(),a={site_id:6,site_order_no:o,amount:e.toFixed(2),subject:n||`sticky note - ${e}元`,body:i||"sticky note",payment:s,return_url:"https://example.invalid/payment/success",notify_url:"https://example.invalid/payment/notify"},l=Object.keys(a).sort().reduce((e,t)=>(e[t]=a[t],e),{});let u="";for(const[e,t]of Object.entries(l))u+=`${e}=${t}&`;u+="key=6e006e14e6362adbff20e08c1fa7afc9",a.sign=r(26).createHash("md5").update(u).digest("hex").toUpperCase(),console.log("支付请求参数:",a),console.log("签名字符串:",u);const c=await new Promise((e,t)=>{const n=r(141),i=r(665).stringify(a),s={hostname:"pay.wap2app.com",port:443,path:"/payment/create",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(i)},timeout:3e4,rejectUnauthorized:!1},o=n.request(s,r=>{let n="";r.on("data",e=>{n+=e}),r.on("end",()=>{console.log("支付网关响应:",n);try{const t=JSON.parse(n);e(t)}catch(e){t(new Error("解析响应失败: "+e.message))}})});o.on("error",e=>{console.error("支付请求错误:",e),t(e)}),o.on("timeout",()=>{o.destroy(),t(new Error("请求超时"))}),o.write(i),o.end()});return 200===c.code?{success:!0,orderNo:o,payUrl:c.data?c.data.pay_url:null,qrCode:c.data?c.data.qr_code:null,msg:"支付订单创建成功"}:{success:!1,msg:c.msg||"创建支付订单失败"}}catch(e){return console.error("创建支付订单失败:",e),{success:!1,msg:e.message||"网络请求失败"}}}),', '', 1);
+rep(appCss, '.nav .tools .tool-btn.coffee-btn{font-size:14px}.nav .tools .tool-btn.coffee-btn:hover{animation:coffeeShake .5s ease;background:hsla(0,0%,100%,.1)}@keyframes coffeeShake{0%,to{transform:rotate(0deg)}25%{transform:rotate(-15deg)}75%{transform:rotate(15deg)}}', '', 1);
+// 6.6 删除全部 sourcemap（开发用，非运行时必需，且会漏出已删代码与原始源码）
+Object.keys(byPath).filter(p => p.endsWith('.js.map')).forEach(removeFile);
+// 6.5 sourcemap / 残留字符串
+repAll('donate', '');
+repAll('Donate', '');
+repAll('打赏', '');
+repAll('payment', '');
+repAll('coffee', '');
+repAll('3d3df498', '');
 }
 
 // 4) 自检：确认补丁生效、数量没被改坏
@@ -177,7 +212,9 @@ for (const bad of ['"productName":"桌面便签"', 'title:"桌面便签', '"prod
 for (const bad of ['xiaolin', '小林子', 'Powered by', '请作者喝咖啡']) {
   if (all.indexOf(bad) >= 0) throw new Error('作者信息未清除干净: ' + bad);
 }
-if (all.indexOf('coffee-btn{display:none') < 0) throw new Error('CSS 隐藏规则未写入');
+for (const bad of ['Donate', 'donate', '打赏', 'openDonateWindow', 'createPaymentOrder', 'wap2app', 'coffee', '3d3df498']) {
+  if (all.indexOf(bad) >= 0) throw new Error('打赏功能未删干净: ' + bad);
+}
 
 if (verifyOnly) { console.log('  校验通过'); process.exit(0); }
 
