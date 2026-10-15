@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
-# sticky-note: 把已安装的「桌面便签」改造成无广告、无标题杂项的自用版
+# 生成打过补丁的 app.asar（sticky note 的核心改造逻辑）
 #
-#   bash install.sh            # 安装（需要 sudo 密码）
-#   bash install.sh uninstall  # 还原成原版
-#   bash install.sh build out.asar   # 只生成打好补丁的 app.asar（免密码，便于检查）
+#   bash patch-asar.sh [输出.asar]      默认 ./app-patched.asar
+#   SN_APP_DIR=/path/to/桌面便签 bash patch-asar.sh
 #
-# 改动内容：
-#   - 隐藏工具栏 ☕（请作者喝咖啡）图标
-#   - 隐藏左上角应用名、右上角“记清，办明，不遗漏”
-#   - 应用名改为 sticky note（窗口标题 / 启动器 / 托盘提示）
-#   - 数据目录 ~/.config/todo-list 不变，原有便签数据照常使用
-#
-# 原理：就地替换 /opt/桌面便签/resources/app.asar，原文件备份为 app.asar.orig。
-# 不复制 130MB 的 Electron 运行时，不重编译，不联网。
+# 改动:
+#   - 删除打赏/捐赠功能（路由、窗口、支付接口、页面文件）
+#   - 删除全部 sourcemap
+#   - 清除作者与推广信息
+#   - 应用名改 sticky note，版本号 1.1.0，隐藏标题栏多余文字
+# 自检不通过会直接报错退出，不会写出半成品；替换逻辑幂等，可重复执行。
 
 set -euo pipefail
 
@@ -239,133 +236,18 @@ fs.writeFileSync(out, Buffer.concat([prefix].concat(files.map(f => f.data))));
 console.log('  打包完成: ' + out + ' (' + fs.statSync(out).size + ' 字节, ' + files.length + ' 个文件)');
 PATCHEOF
 
-# ---------------------------------------------------------------- 工具函数
-run_patch() { # run_patch <源> <输出>
-  local tmp; tmp="$(mktemp -d)"
-  printf '%s\n' "$PATCH_JS" > "$tmp/patch.js"
-  if [ -x "$BIN" ]; then
-    ELECTRON_RUN_AS_NODE=1 ELECTRON_NO_ASAR=1 "$BIN" "$tmp/patch.js" "$1" "$2"
-  elif command -v node >/dev/null 2>&1; then
-    node "$tmp/patch.js" "$1" "$2"
-  else
-    rm -rf "$tmp"; die "找不到可用的 node 运行时（$BIN 与 node 都不可用）"
-  fi
-  rm -rf "$tmp"
-}
+# ---------------------------------------------------------------- 入口
+OUT="${1:-app-patched.asar}"
 
-verify_asar() { # verify_asar <file>：重新解包抽查
-  local tmp; tmp="$(mktemp -d)"
-  printf '%s\n' "$PATCH_JS" > "$tmp/patch.js"
-  local out="$tmp/check.asar"
-  ELECTRON_RUN_AS_NODE=1 ELECTRON_NO_ASAR=1 "$BIN" "$tmp/patch.js" "$1" "$out" --verify >/dev/null 2>&1 || { rm -rf "$tmp"; die "校验失败：app.asar 已损坏或补丁未生效"; }
-  rm -rf "$tmp"
-  echo "  校验通过"
-}
+BIN="$APP_DIR/todo-list"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
 
-target_user() { echo "${SUDO_USER:-${USER:-$(id -un 1000)}}"; }
-target_home() { getent passwd "$(target_user)" | cut -d: -f6; }
-
-write_desktop_entry() {
-  local home; home="$(target_home)"
-  local dir="$home/.local/share/applications"
-  local user; user="$(target_user)"
-  install -d -o "$user" -g "$user" "$dir"
-  cat > "$dir/$DESKTOP_ID.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=$APP_NAME
-Comment=简洁高效的待办事项管理工具
-Exec="$BIN" %U
-Terminal=false
-Icon=todo-list
-StartupWMClass=$APP_NAME
-Categories=Office;
-Keywords=todo;note;memo;sticky;
-EOF
-  chown "$user:$user" "$dir/$DESKTOP_ID.desktop"
-  # 隐藏系统里原来的「桌面便签」启动项，避免出现两个图标
-  cat > "$dir/todo-list.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=桌面便签
-Hidden=true
-EOF
-  chown "$user:$user" "$dir/todo-list.desktop"
-  command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$dir" >/dev/null 2>&1 || true
-}
-
-restart_app() {
-  local user; user="$(target_user)"
-  local pid envs=""
-  pid="$(pgrep -f "^$BIN$" | head -1 || true)"
-  if [ -n "$pid" ] && [ -r "/proc/$pid/environ" ]; then
-    local v val
-    for v in DISPLAY XAUTHORITY DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR; do
-      val="$(tr '\0' '\n' < "/proc/$pid/environ" | sed -n "s/^$v=//p" | head -1)"
-      [ -n "$val" ] && envs="$envs $v=$val"
-    done
-  fi
-  [ -n "$envs" ] || envs=" DISPLAY=:0 XAUTHORITY=$(target_home)/.Xauthority"
-  pkill -f "^$BIN$" 2>/dev/null || true
-  sleep 1
-  # shellcheck disable=SC2086
-  setsid runuser -u "$user" -- env $envs "$BIN" >/dev/null 2>&1 < /dev/null &
-  sleep 2
-  pgrep -f "^$BIN$" >/dev/null && echo "  应用已重新启动" || echo "  提示：请手动点击 sticky note 图标启动"
-}
-
-# 应用启动时会重写 ~/.config/autostart/todo-list.desktop，若里面的路径失效（例如指向临时目录）则修正
-fix_autostart() {
-  local home entry
-  home="$(target_home)"
-  entry="$home/.config/autostart/todo-list.desktop"
-  [ -f "$entry" ] || return 0
-  if ! grep -qF "Exec=$BIN" "$entry"; then
-    sed -i "s|^Exec=.*|Exec=$BIN|" "$entry"
-    chown "$(target_user):$(target_user)" "$entry"
-    echo "  已修正开机自启路径: $entry"
-  fi
-}
-
-# ---------------------------------------------------------------- 主流程
-CMD="${1:-install}"
-
-case "$CMD" in
-  build)
-    OUT="${2:-/tmp/sticky-note-app.asar}"
-    [ -f "$ASAR" ] || die "找不到 $ASAR"
-    echo "生成补丁包（不修改系统）："
-    run_patch "$ASAR" "$OUT"
-    ;;
-
-  install)
-    [ "$(id -u)" -eq 0 ] || exec sudo -E bash "$0" "$@"
-    [ -f "$ASAR" ] || die "找不到 $ASAR，确认「桌面便签」已安装"
-    [ -e "$BAK" ] || { cp -a "$ASAR" "$BAK"; echo "已备份原版 -> $BAK"; }
-    echo "应用补丁："
-    run_patch "$BAK" "$ASAR"
-    verify_asar "$ASAR"
-    write_desktop_entry
-    echo "启动器已更新为 $APP_NAME"
-    fix_autostart
-    restart_app
-    echo "完成。卸载还原：bash $0 uninstall"
-    ;;
-
-  uninstall)
-    [ "$(id -u)" -eq 0 ] || exec sudo -E bash "$0" "$@"
-    [ -e "$BAK" ] || die "没有备份文件 $BAK，无法还原"
-    cp -a "$BAK" "$ASAR"
-    local_home="$(target_home)"
-    rm -f "$local_home/.local/share/applications/$DESKTOP_ID.desktop" \
-          "$local_home/.local/share/applications/todo-list.desktop"
-    command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$local_home/.local/share/applications" >/dev/null 2>&1 || true
-    fix_autostart
-    echo "已还原原版「桌面便签」"
-    restart_app
-    ;;
-
-  *)
-    die "未知命令: $CMD（可用: install / uninstall / build）"
-    ;;
-esac
+printf '%s\n' "$PATCH_JS" > "$TMP/patch.js"
+if [ -x "$BIN" ]; then
+  ELECTRON_RUN_AS_NODE=1 ELECTRON_NO_ASAR=1 "$BIN" "$TMP/patch.js" "$ASAR" "$OUT"
+elif command -v node >/dev/null 2>&1; then
+  node "$TMP/patch.js" "$ASAR" "$OUT"
+else
+  die "找不到可用的 node 运行时（$BIN 与 node 都不可用）"
+fi
