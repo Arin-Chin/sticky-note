@@ -1,6 +1,6 @@
 # sticky note
 
-UOS / Deepin「桌面便签」（Electron，包名 `todo-list`）的精简本地版：**打赏功能整段删除**，作者与推广信息全部清除，应用名改为 `sticky note`，换成自定义图标。
+UOS / Deepin「桌面便签」（Electron，包名 `todo-list`）的精简本地版。
 
 > 本仓库只包含打包脚本。安装包由**你本机已安装的原程序**现场构建，仓库不附带、也不分发原程序的任何文件。
 
@@ -39,12 +39,6 @@ sudo dpkg -i todo-list_1.1.0_arm64.deb
 
 包名沿用 `todo-list` 且版本号更高（`1.1.0 > 0.2.3`），属于正常升级安装：不会残留两个启动图标，`~/.config/todo-list` 里的便签数据保持不动。
 
-## 还原原版
-
-```bash
-sudo apt install --reinstall todo-list
-```
-
 ## 自己构建
 
 需要：`dpkg-deb`、`rsvg-convert`（`apt install librsvg2-bin`）、本机已安装原版程序。
@@ -69,22 +63,13 @@ sudo bash install.sh uninstall        # 还原
 
 1. 解析 `resources/app.asar`（Electron 归档格式）到内存
 2. 文本替换：`productName`、窗口标题、版本号、`index.html` 的 `<title>`
-3. 删除打赏功能：渲染层路由 `{path:"/donate"}`、`showDonate()`、`/donate` 判定、webpack chunk 映射、`index.html` 预取链接、asar 内打赏页面文件、主进程 `openDonateWindow` 与 `createPaymentOrder`
-4. 清除作者/推广信息：`author`、`homepage`、`Powered by 万能小林子`、打赏文案与 `xiaolinwl.com` 支付地址
-5. 删除全部 `.js.map`（开发产物，含原始源码）
-6. 追加 CSS 隐藏标题栏应用名与标语
-7. 用 `rsvg-convert` 把 SVG 渲染成 16–512px PNG，替换 asar 内 `logo.png` / `tray.png` / `icons/*`
-8. 自检通过后重新打包，连同图标、启动项、Debian 文档一起打成 `.deb`
-
-自检会检查作者信息、打赏关键字、已删除的 chunk 是否还有残留，任何一项不通过就直接报错退出，不会写出半成品。替换逻辑是幂等的，可重复执行。
+3. 追加 CSS 隐藏标题栏应用名与标语
+4. 用 `rsvg-convert` 把 SVG 渲染成 16–512px PNG，替换 asar 内 `logo.png` / `tray.png` / `icons/*`
+5. 自检通过后重新打包，连同图标、启动项、Debian 文档一起打成 `.deb`
 
 ## 兼容性
 
 - 实测环境：UOS Desktop 20 Professional，原版 `todo-list` v0.2.3 / arm64 / Electron 13
 - 脚本按 `app.<hash>.js` 通配定位文件；原程序逻辑改动过大时会报「版本不匹配」并安全退出
 
-## 免责声明
-
-- 仅修改本机已安装的副本，供个人本地使用；本仓库不提供原程序下载
-- 原程序版权归其作者所有，本项目与之无关联
 - 本仓库脚本以 MIT 许可发布，见 [LICENSE](LICENSE)
