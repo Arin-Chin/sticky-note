@@ -174,6 +174,9 @@
     '#app .nav .tools .sn-btn:hover{background:rgba(150,150,150,.22)}',
     '#app .nav .tools .sn-btn:active{transform:scale(.92)}',
     '#app .nav .tools .sn-btn.sn-active{color:#feca57}',
+    // 图钉启用后斜过来（钉住了）
+    '#app .nav .tools .sn-pin svg{transition:transform .2s ease}',
+    '#app .nav .tools .sn-pin.sn-active svg{transform:rotate(45deg)}',
     '#app .nav .tools .sn-gear.sn-open{background:rgba(150,150,150,.22)}',
 
     // ---- 齿轮面板（小窗口可滚动，不被裁掉）
