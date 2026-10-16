@@ -186,6 +186,10 @@
     '#app .nav .tools .sn-pin.sn-active svg{transform:rotate(45deg)}',
     '#app .nav .tools .sn-gear.sn-open{background:rgba(150,150,150,.22)}',
 
+    // ---- 待办空状态：去掉笔图标与两行提示（单击空白仍可新增；已完成页不受影响）
+    '#app .empty-state .empty-emoji,#app .empty-state .empty-text,',
+    '#app .empty-state .empty-hint{display:none!important}',
+
     // ---- 齿轮面板（小窗口可滚动，不被裁掉）
     '.sn-panel{position:fixed;top:52px;right:10px;z-index:1002;',
     'width:min(240px,calc(100vw - 20px));box-sizing:border-box;padding:12px;',
