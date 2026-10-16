@@ -122,7 +122,9 @@
     '.icon-back': 'arrowLeft',
     '.icon-add': 'plus',
     '.icon-minus': 'minus',
-    '.icon-browse': 'image'
+    '.icon-browse': 'image',
+    '.sn-pin': 'pin',
+    '.sn-gear': 'gear'
   };
 
   var css = [
@@ -136,7 +138,7 @@
     '#app .iconfont::before{content:""!important;display:block;width:1em;height:1em;',
     'background-color:currentColor;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;',
     '-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain}',
-    '#app .nav .tools .iconfont::before{width:17px;height:17px}',
+    '#app .nav .tools .iconfont::before,.sn-btn::before{width:17px;height:17px}',
     '#app .nav .tools .lock-btn::before{width:18px;height:18px}',
 
     // ---- 便签纸颜色
@@ -175,20 +177,19 @@
 
     // ---- 新增按钮
     '#app .nav .tools .sn-btn{width:20px;height:20px;cursor:pointer;border-radius:5px;',
-    'color:var(--sn-ui);',
     'display:flex;align-items:center;justify-content:center;transition:background .18s,color .18s,transform .18s;',
     '-webkit-app-region:no-drag}',
     '#app .nav .tools .sn-btn:hover{background:rgba(150,150,150,.22)}',
     '#app .nav .tools .sn-btn:active{transform:scale(.92)}',
     '#app .nav .tools .sn-btn.sn-active{opacity:.9}',
-    // 图钉启用后斜过来（钉住了）
-    '#app .nav .tools .sn-pin svg{transition:transform .2s ease}',
-    '#app .nav .tools .sn-pin.sn-active svg{transform:rotate(45deg)}',
+    // 图钉启用后斜过来（钉住了）——与隐藏/锁定同一套 ::before mask
+    '#app .nav .tools .sn-pin::before{transition:transform .2s ease}',
+    '#app .nav .tools .sn-pin.sn-active::before{transform:rotate(45deg)}',
     '#app .nav .tools .sn-gear.sn-open{background:rgba(150,150,150,.22)}',
 
     // 原程序全局有 *{color:#fff}，会命中注入的 svg 自身，
     // 导致 stroke="currentColor" 取到白色；强制继承父级颜色。
-    '#app .sn-btn svg,#app .sn-emoji svg,.sn-panel svg{color:inherit}',
+    '#app .sn-emoji svg,.sn-panel svg{color:inherit}',,
     // 删除是危险操作，保留原有红色语义，不跟界面色
     '#app .edit-shortcuts .delete-icon,#app .edit-shortcuts .delete-icon svg{color:#e74c3c!important}',
 
@@ -492,18 +493,14 @@
   // ---------------------------------------------------------------- 工具条
   var gearBtn = null;
 
-  function setIcon(el, name, size) {
-    el.innerHTML = svg(name, size);
-  }
-
   function inject() {
     var tools = document.querySelector('#app .nav .tools');
     if (!tools || tools.querySelector('.sn-gear')) return;
 
-    var pin = document.createElement('span');
-    pin.className = 'sn-btn sn-pin';
+    // 与「隐藏到托盘」「锁定」完全同构：iconfont + ::before mask，颜色由父级 color 决定
+    var pin = document.createElement('i');
+    pin.className = 'iconfont sn-btn sn-pin';
     pin.title = '置顶（始终在最前）';
-    setIcon(pin, 'pin');
     pin.onclick = function () {
       ipc.invoke('toggleAlwaysOnTop').then(function (on) {
         pin.classList.toggle('sn-active', !!on);
@@ -515,10 +512,9 @@
       if (on) pin.title = '取消置顶';
     });
 
-    var gear = document.createElement('span');
-    gear.className = 'sn-btn sn-gear';
+    var gear = document.createElement('i');
+    gear.className = 'iconfont sn-btn sn-gear';
     gear.title = '设置';
-    setIcon(gear, 'gear');
     gear.onclick = function (e) {
       e.stopPropagation();
       togglePanel();
