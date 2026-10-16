@@ -239,9 +239,9 @@
     '.sn-split{height:1px;background:rgba(150,150,150,.22);margin:10px 0}',
     '.sn-menu{display:flex;flex-direction:column;gap:2px}',
     '.sn-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:none;',
-    'border-radius:6px;background:none;color:var(--sn-surface-fg,#eaeaea);cursor:pointer;font-size:12px;',
-    'text-align:left;transition:background .18s}',
-    '.sn-menu button:hover{background:rgba(150,150,150,.18)}',
+    'border-radius:6px;background:none;color:var(--sn-surface-dim,rgba(255,255,255,.55));cursor:pointer;font-size:12px;',
+    'text-align:left;transition:background .18s,color .18s}',
+    '.sn-menu button:hover{background:rgba(150,150,150,.18);color:var(--sn-surface-fg,#eaeaea)}',
     '.sn-menu button svg{flex-shrink:0}',
 
     // ---- emoji 替换成线性图标后的容器
