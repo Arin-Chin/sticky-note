@@ -208,6 +208,8 @@
     'border-radius:50%;background:#54a0ff;cursor:pointer;border:1px solid #fff}',
     '.sn-alpha{width:34px;text-align:right;color:var(--sn-surface-dim,rgba(255,255,255,.6));',
     'font-variant-numeric:tabular-nums}',
+    '.sn-val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;',
+    'color:var(--sn-surface-dim,rgba(255,255,255,.5));margin:-2px 0 8px;letter-spacing:.2px}',
     '.sn-apply{width:100%;padding:6px;border:1px solid rgba(150,150,150,.3);border-radius:6px;',
     'background:rgba(150,150,150,.12);color:var(--sn-surface-fg,#eaeaea);cursor:pointer;font-size:12px;',
     'transition:background .18s}',
@@ -320,7 +322,7 @@
   // ---------------------------------------------------------------- 齿轮面板
   var panel = null;
 
-  function buildSection(title, presets, state, onApply, onReset) {
+  function buildSection(title, presets, state, onApply, onReset, defaultHex) {
     var wrap = document.createElement('div');
     wrap.className = 'sn-sec';
 
@@ -365,17 +367,30 @@
     row.appendChild(alphaText);
     wrap.appendChild(row);
 
+    // 当前 RGBA 值实时回显，避免只看到 HEX 以为没透明度
+    var valText = document.createElement('div');
+    valText.className = 'sn-val';
+    wrap.appendChild(valText);
+
     colorInput.oninput = function () { state.hex = colorInput.value; onApply(); sync(); };
     alphaInput.oninput = function () {
       state.alpha = Number(alphaInput.value) / 100;
       alphaText.textContent = alphaInput.value + '%';
       onApply();
+      updateVal();
     };
+
+    function rgbaText() {
+      var c = parseHex(state.hex);
+      return 'rgba(' + c.r + ', ' + c.g + ', ' + c.b + ', ' + state.alpha.toFixed(2).replace(/\.?0+$/, '') + ')';
+    }
+    function updateVal() { valText.textContent = rgbaText(); }
 
     function sync() {
       swNodes.forEach(function (s) {
         s.node.className = 'sn-sw' + (s.color.toLowerCase() === String(state.hex).toLowerCase() ? ' sn-on' : '');
       });
+      updateVal();
     }
     sync();
 
@@ -392,6 +407,9 @@
     reset.textContent = '恢复默认';
     reset.onclick = function () {
       onReset();
+      state.hex = defaultHex;
+      state.alpha = 1;
+      colorInput.value = defaultHex;
       alphaInput.value = '100';
       alphaText.textContent = '100%';
       sync();
@@ -413,19 +431,19 @@
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
       applyPaper(paperState);
-    }, resetPaper);
+    }, resetPaper, '#2d2d2d');
     panel.appendChild(paperSec.node);
 
     var fontSec = buildSection('便签文字颜色', FONT_PRESETS, fontState, function () {
       saveColor(KEY_FONT, fontState.hex, fontState.alpha);
       applyFont(fontState);
-    }, resetFont);
+    }, resetFont, '#ffffff');
     panel.appendChild(fontSec.node);
 
     var uiSec = buildSection('软件字体颜色', UI_PRESETS, uiState, function () {
       saveColor(KEY_UI, uiState.hex, uiState.alpha);
       applyUi(uiState);
-    }, resetUi);
+    }, resetUi, '#ffffff');
     panel.appendChild(uiSec.node);
 
     var split = document.createElement('div');
