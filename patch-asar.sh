@@ -76,6 +76,13 @@ const removeFile = p => {
   if (i >= 0) { files.splice(i, 1); delete byPath[p]; console.log('  删除文件 ' + p); }
   else console.log('  文件不存在，跳过 ' + p);
 };
+const addFile = (p, data) => {
+  const existing = byPath[p];
+  if (existing) { existing.data = data; console.log('  更新文件 ' + p + ' (' + data.length + ' 字节)'); return; }
+  const f = { path: p, data: data };
+  files.push(f); byPath[p] = f;
+  console.log('  新增文件 ' + p + ' (' + data.length + ' 字节)');
+};
 
 const get = p => { if (!byPath[p]) throw new Error('asar 中缺少 ' + p); return byPath[p].data.toString('utf8'); };
 const set = (p, s) => { byPath[p].data = Buffer.from(s, 'utf8'); };
@@ -192,6 +199,14 @@ rep('/background.js', 'n.ipcMain.handle("createPaymentOrder",async(e,t)=>{try{co
 rep(appCss, '.nav .tools .tool-btn.coffee-btn{font-size:14px}.nav .tools .tool-btn.coffee-btn:hover{animation:coffeeShake .5s ease;background:hsla(0,0%,100%,.1)}@keyframes coffeeShake{0%,to{transform:rotate(0deg)}25%{transform:rotate(-15deg)}75%{transform:rotate(15deg)}}', '', 1);
 // 6.6 删除全部 sourcemap（开发用，非运行时必需，且会漏出已删代码与原始源码）
 Object.keys(byPath).filter(p => p.endsWith('.js.map')).forEach(removeFile);
+
+// 6.7 注入界面扩展脚本：右上角置顶+齿轮菜单（便签纸/字体颜色 RGBA、导出、使用指南）
+if (process.env.SN_EXTRA_JS) {
+  addFile('/js/notes-plus.js', fs.readFileSync(process.env.SN_EXTRA_JS));
+  rep('/index.html', '</body>', '<script src="app://./js/notes-plus.js"></script></body>', 1);
+} else {
+  console.log('  未提供 SN_EXTRA_JS，跳过界面扩展');
+}
 // 6.5 sourcemap / 残留字符串
 repAll('donate', '');
 repAll('Donate', '');
@@ -238,6 +253,8 @@ PATCHEOF
 
 # ---------------------------------------------------------------- 入口
 OUT="${1:-app-patched.asar}"
+# 界面扩展脚本（齿轮菜单 + 置顶按钮），默认取仓库里的 notes-plus.js
+export SN_EXTRA_JS="${SN_EXTRA_JS:-$(cd "$(dirname "$0")" && pwd)/notes-plus.js}"
 
 BIN="$APP_DIR/todo-list"
 TMP="$(mktemp -d)"

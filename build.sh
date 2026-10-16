@@ -6,12 +6,12 @@
 # 产物: ./sticky-note-1.1.0-linux-arm64.tar.gz
 # 解压即用，不依赖系统里是否装过原程序。
 #
-# 需要: rsvg-convert（apt install librsvg2-bin）、本机已安装的原程序（或 SN_APP_DIR 指定）
+# 需要: rsvg-convert（仅当图标是 SVG 时，apt install librsvg2-bin）、本机已安装的原程序（或 SN_APP_DIR 指定）
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ICON_SVG="${1:-/home/user/Downloads/sticky-note.svg}"
+ICON_SVG="${1:-$HOME/Downloads/sticky-note.svg}"
 VERSION="1.1.0"
 APP_NAME="sticky note"
 SIZES="16 24 32 48 64 96 128 256 512"
@@ -22,7 +22,9 @@ OUT="$PWD/$PKG_NAME.tar.gz"
 die() { echo "错误: $*" >&2; exit 1; }
 
 [ -f "$ICON_SVG" ] || die "找不到图标文件: $ICON_SVG"
-command -v rsvg-convert >/dev/null || die "缺少 rsvg-convert（apt install librsvg2-bin）"
+case "${ICON_SVG##*.}" in
+  svg|SVG) command -v rsvg-convert >/dev/null || die "SVG 图标需要 rsvg-convert（apt install librsvg2-bin）" ;;
+esac
 
 APP_DIR="${SN_APP_DIR:-}"
 if [ -z "$APP_DIR" ]; then
@@ -40,14 +42,27 @@ echo "[1/4] 生成补丁后的 app.asar"
 SN_APP_DIR="$APP_DIR" bash patch-asar.sh "$WORK/app.asar" >/dev/null
 echo "      $(stat -c%s "$WORK/app.asar") 字节"
 
-echo "[2/4] 从 SVG 渲染图标: $ICON_SVG"
+echo "[2/4] 准备图标: $ICON_SVG"
 mkdir -p "$WORK/icons"
-for s in $SIZES; do
-  rsvg-convert -w "$s" -h "$s" "$ICON_SVG" -o "$WORK/icons/$s.png"
-done
-rsvg-convert -w 512 -h 512 "$ICON_SVG" -o "$WORK/logo512.png"
-rsvg-convert -w 32 -h 32 "$ICON_SVG" -o "$WORK/tray32.png"
-echo "      $SIZES + 托盘 32px"
+case "${ICON_SVG##*.}" in
+  svg|SVG)
+    for s in $SIZES; do
+      rsvg-convert -w "$s" -h "$s" "$ICON_SVG" -o "$WORK/icons/$s.png"
+    done
+    rsvg-convert -w 512 -h 512 "$ICON_SVG" -o "$WORK/logo512.png"
+    rsvg-convert -w 32 -h 32 "$ICON_SVG" -o "$WORK/tray32.png"
+    echo "      由 SVG 渲染 $SIZES + 托盘 32px"
+    ;;
+  *)
+    # 位图图标：原样使用，由桌面环境/Electron 自行缩放
+    for s in $SIZES; do
+      cp -f "$ICON_SVG" "$WORK/icons/$s.png"
+    done
+    cp -f "$ICON_SVG" "$WORK/logo512.png"
+    cp -f "$ICON_SVG" "$WORK/tray32.png"
+    echo "      使用位图 $SIZES + 托盘"
+    ;;
+esac
 
 echo "[3/4] 替换 asar 内的托盘 / 窗口 / favicon 图标"
 cat > "$WORK/icons.js" <<'JSEOF'
