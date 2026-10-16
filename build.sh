@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ICON_SVG="${1:-$HOME/Downloads/sticky-note.svg}"
+ICON_SVG="${1:-$PWD/sticky-note.svg}"
 VERSION="1.1.0"
 APP_NAME="sticky note"
 SIZES="16 24 32 48 64 96 128 256 512"
@@ -150,10 +150,14 @@ chmod +x "$ROOT/sticky-note.sh"
 cat > "$ROOT/install-desktop.sh" <<'EOF'
 #!/bin/bash
 # 可选：把 sticky note 加入应用菜单（不需要 root）
+# 图标会复制到 ~/.local/share/icons，与解压目录无关：
+# 以后移动或删除解压出来的文件夹，菜单图标仍能正常显示。
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 APPS="$HOME/.local/share/applications"
-mkdir -p "$APPS"
+ICONS="$HOME/.local/share/icons/hicolor/512x512/apps"
+mkdir -p "$APPS" "$ICONS"
+cp -f "$DIR/logo.png" "$ICONS/sticky-note.png"
 cat > "$APPS/sticky-note.desktop" <<DESK
 [Desktop Entry]
 Type=Application
@@ -161,14 +165,17 @@ Name=sticky note
 Comment=简洁高效的本地便签
 Exec="$DIR/todo-list" %U
 Terminal=false
-Icon=$DIR/logo.png
+Icon=sticky-note
 StartupWMClass=sticky note
 Categories=Office;
 DESK
 if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$APPS" || true; fi
-echo "已加入应用菜单: sticky note"
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache -q -t -f "$HOME/.local/share/icons/hicolor" || true; fi
+echo "已加入应用菜单: sticky note（图标已装到 ~/.local/share/icons）"
 EOF
 chmod +x "$ROOT/install-desktop.sh"
+# 图标源文件一并放进压缩包，方便自行换图标重新构建
+cp -f "$ICON_SVG" "$ROOT/sticky-note.${ICON_SVG##*.}"
 
 cat > "$ROOT/README.txt" <<EOF
 $APP_NAME $VERSION 免安装版

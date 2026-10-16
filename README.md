@@ -32,6 +32,26 @@ cd sticky-note-1.1.0-linux-arm64
 ./install-desktop.sh
 ```
 
+菜单图标会复制到 `~/.local/share/icons/hicolor/512x512/apps/sticky-note.png`，
+与解压目录无关：以后移动或删除解压出来的文件夹，菜单图标仍正常显示。
+
+移除：
+
+```bash
+rm -f ~/.local/share/applications/sticky-note.desktop \
+      ~/.local/share/icons/hicolor/512x512/apps/sticky-note.png
+```
+
+便签数据保存在 `~/.config/todo-list`，删除目录或卸载菜单项都不会丢失。
+
+## 图标
+
+图标源文件在仓库根目录：`sticky-note.svg`。
+
+- 构建时默认使用它，不再依赖 `~/Downloads` 或其他本地路径；把它删了也能照常构建
+- 压缩包里也附带一份（`sticky-note.svg` 与渲染好的 `logo.png`），换图标重新构建可直接用它
+- 换图标：`bash build.sh 你的图标.svg`，也支持直接传 PNG
+
 ## 许可
 
 脚本以 MIT 许可发布，见 [LICENSE](LICENSE)。原程序版权归其作者所有，本仓库不提供原程序下载。
