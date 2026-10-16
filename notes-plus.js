@@ -126,6 +126,8 @@
   };
 
   var css = [
+    // 软件字体颜色默认值（未自定义时也是白色，自定义后跟随 --sn-ui）
+    ':root{--sn-ui:rgba(255,255,255,1)}',
     // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单）
     '#app .nav .tools .help-btn,#app .nav .tools .icon-export{display:none!important}',
 
@@ -144,6 +146,10 @@
 
     // ---- 便签文字颜色（只作用于便签内容）
     'body.sn-font-custom #app .root .display p{color:var(--sn-font)!important}',
+
+    // ---- 导航栏文字与工具图标跟随软件字体颜色（含激活态；hover 保留透明度变化）
+    '#app .nav .link a,#app .nav .link a.router-link-exact-active,#app .nav .link .divider{color:var(--sn-ui)}',
+    '#app .nav .tools i{color:var(--sn-ui)}',
 
     // ---- 软件界面字体颜色（chrome 文字，不含便签内容）
     'body.sn-ui-custom #app{color:var(--sn-ui)!important}',
@@ -169,11 +175,12 @@
 
     // ---- 新增按钮
     '#app .nav .tools .sn-btn{width:20px;height:20px;cursor:pointer;border-radius:5px;',
+    'color:var(--sn-ui);',
     'display:flex;align-items:center;justify-content:center;transition:background .18s,color .18s,transform .18s;',
     '-webkit-app-region:no-drag}',
     '#app .nav .tools .sn-btn:hover{background:rgba(150,150,150,.22)}',
     '#app .nav .tools .sn-btn:active{transform:scale(.92)}',
-    '#app .nav .tools .sn-btn.sn-active{color:#feca57}',
+    '#app .nav .tools .sn-btn.sn-active{opacity:.9}',
     // 图钉启用后斜过来（钉住了）
     '#app .nav .tools .sn-pin svg{transition:transform .2s ease}',
     '#app .nav .tools .sn-pin.sn-active svg{transform:rotate(45deg)}',
