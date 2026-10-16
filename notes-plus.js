@@ -333,7 +333,7 @@
   // ---------------------------------------------------------------- 齿轮面板
   var panel = null;
 
-  function buildSection(title, presets, state, onApply, onReset, defaultHex) {
+  function buildSection(title, presets, state, onApply, onReset, defaultHex, btnLabel) {
     var wrap = document.createElement('div');
     wrap.className = 'sn-sec';
 
@@ -407,7 +407,7 @@
 
     var apply = document.createElement('button');
     apply.className = 'sn-apply';
-    apply.textContent = '应用' + title;
+    apply.textContent = btnLabel || ('应用' + title);
     apply.onclick = onApply;
     wrap.appendChild(apply);
 
@@ -442,19 +442,19 @@
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
       applyPaper(paperState);
-    }, resetPaper, '#2d2d2d');
+    }, resetPaper, '#2d2d2d', '应用背景色');
     panel.appendChild(paperSec.node);
 
     var fontSec = buildSection('便签文字颜色', FONT_PRESETS, fontState, function () {
       saveColor(KEY_FONT, fontState.hex, fontState.alpha);
       applyFont(fontState);
-    }, resetFont, '#ffffff');
+    }, resetFont, '#ffffff', '应用文字色');
     panel.appendChild(fontSec.node);
 
     var uiSec = buildSection('软件字体颜色', UI_PRESETS, uiState, function () {
       saveColor(KEY_UI, uiState.hex, uiState.alpha);
       applyUi(uiState);
-    }, resetUi, '#ffffff');
+    }, resetUi, '#ffffff', '应用界面色');
     panel.appendChild(uiSec.node);
 
     var split = document.createElement('div');
