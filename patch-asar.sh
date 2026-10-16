@@ -96,7 +96,8 @@ function rep(p, from, to, expect) {
   const s = get(p);
   const n = s.split(from).length - 1;
   if (n === 0) {
-    if (to && s.indexOf(to) >= 0) { console.log('  ' + p + ' : 已处理，跳过'); return; }
+    // 删除类替换（to 为空）找不到即视为已完成，保证脚本幂等
+    if (!to || s.indexOf(to) >= 0) { console.log('  ' + p + ' : 已处理，跳过'); return; }
     throw new Error(p + ' 中找不到 "' + from + '"（版本不匹配？）');
   }
   if (expect != null && n !== expect) throw new Error(p + ' 中 "' + from + '" 出现 ' + n + ' 次，预期 ' + expect + ' 次（版本不匹配？）');
@@ -202,11 +203,29 @@ Object.keys(byPath).filter(p => p.endsWith('.js.map')).forEach(removeFile);
 
 // 6.7 注入界面扩展脚本：右上角置顶+齿轮菜单（便签纸/字体颜色 RGBA、导出、使用指南）
 if (process.env.SN_EXTRA_JS) {
-  addFile('/js/notes-plus.js', fs.readFileSync(process.env.SN_EXTRA_JS));
-  rep('/index.html', '</body>', '<script src="app://./js/notes-plus.js"></script></body>', 1);
+  const extra = fs.readFileSync(process.env.SN_EXTRA_JS);
+  addFile('/js/notes-plus.js', extra);
+  // 带内容摘要做 cache-bust，避免 app:// 磁盘缓存继续跑旧脚本
+  const ver = require('crypto').createHash('md5').update(extra).digest('hex').slice(0, 8);
+  rep('/index.html', '</body>',
+      '<script src="app://./js/notes-plus.js?v=' + ver + '"></script></body>', 1);
 } else {
   console.log('  未提供 SN_EXTRA_JS，跳过界面扩展');
 }
+
+// 6.8 托盘右键菜单去掉「设置」「使用指南」（齿轮菜单里已有使用指南）
+rep('/background.js',
+    ',{label:"设置",click:()=>{r&&r(),e&&e()}}',
+    '', null);
+rep('/background.js',
+    ',{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}}',
+    '', null);
+rep('/background.js',
+    '{label:"设置",click:()=>{r&&r(),e&&e()}}',
+    '', null);
+rep('/background.js',
+    '{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}}',
+    '', null);
 // 6.5 sourcemap / 残留字符串
 repAll('donate', '');
 repAll('Donate', '');

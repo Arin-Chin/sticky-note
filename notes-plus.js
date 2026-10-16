@@ -242,6 +242,8 @@
     'border-radius:6px;background:none;color:var(--sn-surface-dim,rgba(255,255,255,.55));cursor:pointer;font-size:12px;',
     'text-align:left;transition:background .18s,color .18s}',
     '.sn-menu button:hover{background:rgba(150,150,150,.18);color:var(--sn-surface-fg,#eaeaea)}',
+    // 文字在 span 里，原程序 *{color:#fff} 会命中 span 自身而盖掉继承
+    '.sn-menu button span{color:inherit}',
     '.sn-menu button svg{flex-shrink:0}',
 
     // ---- emoji 替换成线性图标后的容器
