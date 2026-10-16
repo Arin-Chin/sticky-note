@@ -2,7 +2,7 @@
  * sticky note 界面扩展（渲染层注入脚本，不改动编译后的 Vue 代码）
  *
  * 1. 右上角工具条：隐藏到托盘 → 锁定 → 置顶 → 设置（齿轮）
- * 2. 齿轮菜单：便签纸颜色(RGBA)、便签文字颜色(RGBA)、软件字体颜色(RGBA)，
+ * 2. 齿轮菜单：便签纸颜色(RGBA)、便签文字颜色(RGBA)、应用界面颜色(RGBA)，
  *    各 9 个预选色；导出到 Excel、使用指南移入菜单
  * 3. 图标统一为 Apple 风格极简线性 SVG（细描边、圆端头、单色 currentColor）
  *
@@ -126,7 +126,7 @@
   };
 
   var css = [
-    // 软件字体颜色默认值（未自定义时也是白色，自定义后跟随 --sn-ui）
+    // 应用界面颜色默认值（未自定义时也是白色，自定义后跟随 --sn-ui）
     ':root{--sn-ui:rgba(255,255,255,1)}',
     // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单）
     '#app .nav .tools .help-btn,#app .nav .tools .icon-export{display:none!important}',
@@ -147,7 +147,7 @@
     // ---- 便签文字颜色（只作用于便签内容）
     'body.sn-font-custom #app .root .display p{color:var(--sn-font)!important}',
 
-    // ---- 导航栏文字与工具图标跟随软件字体颜色（含激活态；hover 保留透明度变化）
+    // ---- 导航栏文字与工具图标跟随应用界面颜色（含激活态；hover 保留透明度变化）
     '#app .nav .link a,#app .nav .link a.router-link-exact-active,#app .nav .link .divider{color:var(--sn-ui)}',
     '#app .nav .tools i{color:var(--sn-ui)}',
 
@@ -442,19 +442,19 @@
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
       applyPaper(paperState);
-    }, resetPaper, '#2d2d2d', '应用便签纸颜色');
+    }, resetPaper, '#2d2d2d', '应用');
     panel.appendChild(paperSec.node);
 
     var fontSec = buildSection('便签文字颜色', FONT_PRESETS, fontState, function () {
       saveColor(KEY_FONT, fontState.hex, fontState.alpha);
       applyFont(fontState);
-    }, resetFont, '#ffffff', '文字色');
+    }, resetFont, '#ffffff', '应用');
     panel.appendChild(fontSec.node);
 
-    var uiSec = buildSection('软件字体颜色', UI_PRESETS, uiState, function () {
+    var uiSec = buildSection('应用界面颜色', UI_PRESETS, uiState, function () {
       saveColor(KEY_UI, uiState.hex, uiState.alpha);
       applyUi(uiState);
-    }, resetUi, '#ffffff', '应用界面色');
+    }, resetUi, '#ffffff', '应用');
     panel.appendChild(uiSec.node);
 
     var split = document.createElement('div');
