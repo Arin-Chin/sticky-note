@@ -186,6 +186,12 @@
     '#app .nav .tools .sn-pin.sn-active svg{transform:rotate(45deg)}',
     '#app .nav .tools .sn-gear.sn-open{background:rgba(150,150,150,.22)}',
 
+    // 原程序全局有 *{color:#fff}，会命中注入的 svg 自身，
+    // 导致 stroke="currentColor" 取到白色；强制继承父级颜色。
+    '#app .sn-btn svg,#app .sn-emoji svg,.sn-panel svg{color:inherit}',
+    // 删除是危险操作，保留原有红色语义，不跟界面色
+    '#app .edit-shortcuts .delete-icon,#app .edit-shortcuts .delete-icon svg{color:#e74c3c!important}',
+
     // ---- 待办空状态：去掉笔图标与两行提示（单击空白仍可新增；已完成页不受影响）
     '#app .empty-state .empty-emoji,#app .empty-state .empty-text,',
     '#app .empty-state .empty-hint{display:none!important}',
