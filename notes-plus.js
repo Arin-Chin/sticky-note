@@ -144,6 +144,22 @@
     '#app .about-window .shortcut-item{background:rgba(128,128,128,.18)!important;',
     'border:1px solid rgba(128,128,128,.28)!important}',
     '#app .about-window .shortcut-item .key{background:rgba(128,128,128,.28)!important}',
+
+    // ---- 修改详情卡片：背景=便签纸颜色，文字=软件提示色；当前内容做成笔记区域
+    '#app .modal .modal-content{background:var(--sn-paper,#2d2d2d)!important;',
+    'color:var(--sn-ui,#fff)!important;border-radius:0!important}',
+    '#app .modal .modal-header,#app .modal .modal-body{background:transparent!important}',
+    '#app .modal .modal-header h3,#app .modal .modal-body label,',
+    '#app .modal .modal-body p,#app .modal .modal-body small,',
+    '#app .modal .history-time,#app .modal .detail-item p,',
+    '#app .modal .change .old,#app .modal .change .new,',
+    '#app .modal .delete-confirm-item{color:var(--sn-ui,#fff)!important}',
+    // 当前内容 → 独立的笔记区域
+    '#app .modal .detail-item.current>label{font-size:0;margin-bottom:6px}',
+    '#app .modal .detail-item.current>label::before{content:"笔记区域";font-size:12px}',
+    '#app .modal .detail-item.current p{background:rgba(128,128,128,.12)!important;',
+    'border:1px solid rgba(128,128,128,.35);border-radius:0;padding:10px}',
+    '#app .modal .history-item{background:rgba(128,128,128,.08)!important;border-radius:0!important}',
     // 卡片改跟随便签纸颜色后，圆角会露出底色，索性全改方角
     '#app .about-window,#app .about-window *{border-radius:0!important}',
 
