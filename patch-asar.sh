@@ -216,7 +216,7 @@ if (process.env.SN_EXTRA_JS) {
 // 6.8 托盘：右键仅保留「退出」；隐藏/显示改为双击托盘图标
 rep('/background.js',
     'a=[{label:"显示/隐藏",click:()=>{t&&t()}}];"function"==typeof o&&o()&&a.push({label:"🔓 解锁窗口",click:()=>{s&&s()}}),a.push({type:"separator"},{label:"设置",click:()=>{r&&r(),e&&e()}},{label:"开机启动",type:"checkbox",checked:z(),click(){$(!z())}},{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}},{type:"separator"},{label:"退出",role:"quit"}),M.setContextMenu(n.Menu.buildFromTemplate(a))',
-    'a=[{label:"退出",role:"quit"}];M.setContextMenu(n.Menu.buildFromTemplate(a))',
+    'a=[{label:"显示/隐藏",click:()=>{se()}},{label:"退出",role:"quit"}];M.setContextMenu(n.Menu.buildFromTemplate(a))',
     null);
 rep('/background.js',
     'M.on("click",()=>{t&&t()}),M.on("double-click",()=>{t&&t()}),M.on("right-click",()=>{M.popUpContextMenu()})',
