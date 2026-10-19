@@ -213,19 +213,29 @@ if (process.env.SN_EXTRA_JS) {
   console.log('  未提供 SN_EXTRA_JS，跳过界面扩展');
 }
 
-// 6.8 托盘右键菜单去掉「设置」「使用指南」（齿轮菜单里已有使用指南）
+// 6.8 托盘：右键仅保留「退出」；隐藏/显示改为双击托盘图标
 rep('/background.js',
-    ',{label:"设置",click:()=>{r&&r(),e&&e()}}',
-    '', null);
+    'a=[{label:"显示/隐藏",click:()=>{t&&t()}}];"function"==typeof o&&o()&&a.push({label:"🔓 解锁窗口",click:()=>{s&&s()}}),a.push({type:"separator"},{label:"设置",click:()=>{r&&r(),e&&e()}},{label:"开机启动",type:"checkbox",checked:z(),click(){$(!z())}},{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}},{type:"separator"},{label:"退出",role:"quit"}),M.setContextMenu(n.Menu.buildFromTemplate(a))',
+    'a=[{label:"退出",role:"quit"}];M.setContextMenu(n.Menu.buildFromTemplate(a))',
+    null);
 rep('/background.js',
-    ',{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}}',
-    '', null);
+    'M.on("click",()=>{t&&t()}),M.on("double-click",()=>{t&&t()})',
+    'M.on("double-click",()=>{t&&t()})',
+    null);
+
+// 6.8.1 工具栏「隐藏到托盘」移除后，对应 IPC 一并删掉
 rep('/background.js',
-    '{label:"设置",click:()=>{r&&r(),e&&e()}}',
-    '', null);
+    'n.ipcMain.handle("hideWindow",()=>{V&&V.hide()}),',
+    '',
+    null);
+
+// 6.8.2 开机自启状态读写 IPC（供设置齿轮菜单使用）
 rep('/background.js',
-    '{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}}',
-    '', null);
+    'n.ipcMain.handle("getAlwaysOnTop",()=>!!V&&V.isAlwaysOnTop()),',
+    'n.ipcMain.handle("getAlwaysOnTop",()=>!!V&&V.isAlwaysOnTop()),n.ipcMain.handle("getAutoLaunch",()=>z()),n.ipcMain.handle("setAutoLaunch",(e,t)=>{$(!!t);return z()}),',
+    null);
+
+
 // 6.9 启动时清一次 HTTP 磁盘缓存，避免 app:// 继续用旧的 index.html / notes-plus.js
 rep('/background.js',
     'n.app.on("ready",async()=>{',

@@ -122,8 +122,8 @@
     '#app .iconfont{font-family:iconfont!important}',
     // 便签纸/便签文字默认值；--sn-ui 为提示文字与图标颜色，随纸色自动推导
     ':root{--sn-paper:#2d2d2d;--sn-font:#fff;--sn-ui:rgba(255,255,255,1)}',
-    // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单）
-    '#app .nav .tools .help-btn,#app .nav .tools .icon-export{display:none!important}',
+    // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单；隐藏到托盘已移除）
+    '#app .nav .tools .help-btn,#app .nav .tools .icon-export,#app .nav .tools .icon-eye-close{display:none!important}',
 
     // ---- iconfont 替换为线性 SVG（mask 用 currentColor，保留原 hover/状态色）
     '#app .iconfont{-webkit-text-fill-color:transparent}',
@@ -246,6 +246,12 @@
     // 文字在 span 里，原程序 *{color:#fff} 会命中 span 自身而盖掉继承
     '.sn-menu button span{color:inherit}',
     '.sn-menu button svg{flex-shrink:0}',
+    // 开机自启勾选框
+    '.sn-auto-mark{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;',
+    'display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.35}',
+    '.sn-auto-mark svg{width:10px;height:10px;opacity:0}',
+    '.sn-auto-mark.sn-on{opacity:1}',
+    '.sn-auto-mark.sn-on svg{opacity:1}',
 
     // ---- emoji 替换成线性图标后的容器
     '.sn-emoji{display:inline-flex;align-items:center;justify-content:center;vertical-align:-.15em}',
@@ -458,12 +464,33 @@
 
     var menu = document.createElement('div');
     menu.className = 'sn-menu';
+
+    // 开机自启（原托盘菜单项移到这里，放在导出前）
+    var autoOn = false;
+    var autoBtn = document.createElement('button');
+    function renderAuto() {
+      autoBtn.innerHTML = '<span class="sn-auto-mark' + (autoOn ? ' sn-on' : '') + '">' +
+        svg('check', 10) + '</span><span>开机自启</span>';
+    }
+    renderAuto();
+    autoBtn.onclick = function () {
+      ipc.invoke('setAutoLaunch', !autoOn).then(function (on) {
+        autoOn = !!on;
+        renderAuto();
+      });
+    };
+    ipc.invoke('getAutoLaunch').then(function (on) {
+      autoOn = !!on;
+      renderAuto();
+    });
+
     var exportBtn = document.createElement('button');
     exportBtn.innerHTML = svg('download', 16) + '<span>导出到 Excel</span>';
     exportBtn.onclick = function () { hidePanel(); ipc.invoke('exportData'); };
     var guideBtn = document.createElement('button');
     guideBtn.innerHTML = svg('book', 16) + '<span>使用指南</span>';
     guideBtn.onclick = function () { hidePanel(); ipc.invoke('openAboutWindow'); };
+    menu.appendChild(autoBtn);
     menu.appendChild(exportBtn);
     menu.appendChild(guideBtn);
     panel.appendChild(menu);
@@ -482,7 +509,11 @@
 
   function inject() {
     var tools = document.querySelector('#app .nav .tools');
-    if (!tools || tools.querySelector('.sn-gear')) return;
+    if (!tools) return;
+    // 隐藏到托盘的图标和功能一并移除；Vue 重渲染后也再删一次
+    var eye = tools.querySelector('.icon-eye-close');
+    if (eye && eye.parentNode) eye.parentNode.removeChild(eye);
+    if (tools.querySelector('.sn-gear')) return;
 
     // 与「隐藏到托盘」「锁定」完全同构：iconfont + ::before mask，颜色由父级 color 决定
     var pin = document.createElement('i');
@@ -508,7 +539,7 @@
       gear.classList.toggle('sn-open', panelOpen());
     };
 
-    tools.appendChild(pin);   // 隐藏到托盘 → 锁定 → 置顶 → 设置
+    tools.appendChild(pin);   // 锁定 → 置顶 → 设置
     tools.appendChild(gear);
     gearBtn = gear;
 
