@@ -157,13 +157,16 @@
     '#app .nav .link{align-items:center;gap:6px}',
     '#app .nav .link .divider{display:none!important}',
     '#app .nav .link a{display:flex;align-items:center;justify-content:center;',
-    'min-width:46px;height:26px;padding:0 6px;box-sizing:border-box;',
+    'min-width:46px;height:22px;padding:0 6px;box-sizing:border-box;',
     'border:1px solid currentColor;border-radius:0;font-size:12px!important;',
     'opacity:.5;text-decoration:none;transition:background .18s,opacity .18s}',
     '#app .nav .link a:hover{opacity:.8}',
     '#app .nav .link a.router-link-exact-active{opacity:1;font-weight:500;',
     'background:rgba(128,128,128,.3);box-shadow:inset 0 0 0 1px currentColor}',
     '#app .nav .tools i{color:var(--sn-ui)}',
+    // 压缩顶部留白：拖拽条 16px、导航条 24px
+    '#app .drag-nav{height:16px;padding:0 12px}',
+    '#app .nav{height:24px;padding:0 8px}',
 
     // ---- 软件界面字体颜色（chrome 文字，不含便签内容）
     'body.sn-paper-custom #app{color:var(--sn-ui)!important}',
