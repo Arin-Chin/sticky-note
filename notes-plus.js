@@ -122,8 +122,8 @@
     '#app .iconfont{font-family:iconfont!important}',
     // 便签纸/便签文字默认值；--sn-ui 为提示文字与图标颜色，随纸色自动推导
     ':root{--sn-paper:#2d2d2d;--sn-font:#fff;--sn-ui:rgba(255,255,255,1)}',
-    // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单；隐藏到托盘已移除）
-    '#app .nav .tools .help-btn,#app .nav .tools .icon-export,#app .nav .tools .icon-eye-close{display:none!important}',
+    // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单）
+    '#app .nav .tools .help-btn,#app .nav .tools .icon-export{display:none!important}',
 
     // ---- iconfont 替换为线性 SVG（mask 用 currentColor，保留原 hover/状态色）
     '#app .iconfont{-webkit-text-fill-color:transparent}',
@@ -521,9 +521,6 @@
   function inject() {
     var tools = document.querySelector('#app .nav .tools');
     if (!tools) return;
-    // 隐藏到托盘的图标和功能一并移除；Vue 重渲染后也再删一次
-    var eye = tools.querySelector('.icon-eye-close');
-    if (eye && eye.parentNode) eye.parentNode.removeChild(eye);
     if (tools.querySelector('.sn-gear')) return;
 
     // 与「隐藏到托盘」「锁定」完全同构：iconfont + ::before mask，颜色由父级 color 决定
@@ -550,7 +547,7 @@
       gear.classList.toggle('sn-open', panelOpen());
     };
 
-    tools.appendChild(pin);   // 锁定 → 置顶 → 设置
+    tools.appendChild(pin);   // 隐藏到托盘 → 锁定 → 置顶 → 设置
     tools.appendChild(gear);
     gearBtn = gear;
 

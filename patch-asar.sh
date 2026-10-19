@@ -223,12 +223,6 @@ rep('/background.js',
     'M.on("double-click",()=>{t&&t()})',
     null);
 
-// 6.8.1 工具栏「隐藏到托盘」移除后，对应 IPC 一并删掉
-rep('/background.js',
-    'n.ipcMain.handle("hideWindow",()=>{V&&V.hide()}),',
-    '',
-    null);
-
 // 6.8.2 开机自启状态读写 IPC（供设置齿轮菜单使用）
 rep('/background.js',
     'n.ipcMain.handle("getAlwaysOnTop",()=>!!V&&V.isAlwaysOnTop()),',
