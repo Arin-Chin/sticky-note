@@ -105,7 +105,7 @@
     '.icon-export': 'download',
     '.icon-select': 'check',
     '.icon-close': 'x',
-    '.icon-history': 'clock',
+    '.icon-history': 'pencil',
     '.icon-back': 'arrowLeft',
     '.icon-add': 'plus',
     '.icon-minus': 'minus',
@@ -167,7 +167,7 @@
     '#app .modal .delete-confirm-item{color:var(--sn-ui,#fff)!important}',
     // 当前内容 → 独立的笔记区域
     '#app .modal .detail-item.current>label{font-size:0;margin-bottom:6px}',
-    '#app .modal .detail-item.current>label::before{content:"笔记区域";font-size:12px}',
+    '#app .modal .detail-item.current>label::before{content:"笔记：";font-size:12px}',
     '#app .modal .detail-item.current p{background:rgba(128,128,128,.12)!important;',
     'border:1px solid rgba(128,128,128,.35);border-radius:0;padding:10px}',
     '#app .modal .history-item{background:rgba(128,128,128,.08)!important;border-radius:0!important}',
@@ -180,6 +180,15 @@
     '#app .sn-detail-modal .detail-item.current p{outline:none;cursor:text;white-space:pre-wrap;',
     'word-break:break-word;min-height:2em}',
     '#app .sn-detail-modal .detail-item.current p:focus{box-shadow:inset 0 0 0 1px currentColor}',
+    // 主列表只显示待办标题：单行省略，不再展开多行内容
+    '#app .root .display{align-items:center!important}',
+    '#app .root .display p,#app .root .display p.multiline-text,#app .root .item.multiline .display p{',
+    'white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;',
+    'display:block!important;height:2em!important;min-height:2em!important;word-break:normal!important}',
+    '#app .root .display .history-icon{align-self:center!important;display:inline-flex!important;',
+    'align-items:center!important;justify-content:center!important;line-height:1!important;',
+    'margin-top:0!important;height:2em;flex-shrink:0}',
+    '#app .sn-detail-modal .detail-item.current p:empty::before{content:"点击此处添加笔记";opacity:.45}',
 
     // 卡片改跟随便签纸颜色后，圆角会露出底色，索性全改方角
     '#app .about-window,#app .about-window *{border-radius:0!important}',
@@ -674,17 +683,23 @@
     return first.length > 60 ? first.slice(0, 60) + '…' : first;
   }
 
+  // 笔记单独保存到 note 字段：不写 content、不产生标题修改历史
   function saveNoteText(el, text) {
     var root = document.querySelector('#app .root');
     var vm = root && root.__vue__;
-    if (!vm || typeof vm.edited !== 'function') return Promise.reject(new Error('no vm'));
+    if (!vm) return Promise.reject(new Error('no vm'));
     var idx = vm.detailIndex;
     if (idx == null || idx < 0) return Promise.reject(new Error('no index'));
-    vm.editIndex = idx;
-    vm.editContent = text;
-    vm.tempColor = (vm.todoList[idx] && vm.todoList[idx].color) || '#ffffff';
-    return Promise.resolve().then(function () { vm.edited(); }).then(function () {
-      vm.detailItem = vm.todoList[idx];
+    return ipc.invoke('getDataPath').then(function (dir) {
+      var fs = require('fs');
+      var path = require('path');
+      var file = path.join(dir, 'data.json');
+      var data = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (!data.todoList || !data.todoList[idx]) throw new Error('no item');
+      data.todoList[idx].note = text;
+      fs.writeFileSync(file, JSON.stringify(data, null, 2));
+      vm.$set(vm.todoList[idx], 'note', text);
+      if (vm.detailItem) vm.$set(vm.detailItem, 'note', text);
     });
   }
 
@@ -722,6 +737,12 @@
       }
     });
 
+    // 笔记来自独立 note 字段，主列表 content 只作为标题
+    var item = vm && vm.detailItem;
+    var currentNote = (item && item.note) || '';
+    if (!note.dataset.snEditable && note.textContent !== currentNote) {
+      note.textContent = currentNote;
+    }
     if (note.dataset.snEditable) return;
     note.dataset.snEditable = '1';
     note.setAttribute('contenteditable', 'true');
@@ -740,7 +761,7 @@
     });
     note.addEventListener('blur', function () {
       var text = note.textContent.replace(/\s+$/, '');
-      if (!text || text === before) { note.textContent = before; return; }
+      if (text === before) return;
       saveNoteText(note, text).catch(function () { note.textContent = before; });
     });
   }
