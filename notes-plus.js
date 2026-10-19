@@ -261,6 +261,8 @@
     '.sn-menu button span{color:inherit}',
     '.sn-menu button svg{flex-shrink:0}',
     // 开机自启勾选框
+    // 方框只是视觉元素，点击一律落到整行按钮上
+    '.sn-auto-mark,.sn-auto-mark *{pointer-events:none}',
     '.sn-auto-mark{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;',
     'display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.35}',
     '.sn-auto-mark svg{width:10px;height:10px;opacity:0}',
