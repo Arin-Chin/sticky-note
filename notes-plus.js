@@ -727,10 +727,36 @@
       var file = path.join(dir, 'data.json');
       var data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (!data.todoList || !data.todoList[idx]) throw new Error('no item');
-      data.todoList[idx].note = text;
+      var item = data.todoList[idx];
+      var oldNote = item.note || '';
+      if (text === oldNote) return;
+      var stamp = (function () {
+        var d = new Date(), p = function (n) { return String(n).length < 2 ? '0' + n : String(n); };
+        return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' +
+          p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+      })();
+      // 只改笔记也要留历史：标题/颜色取当前值，笔记记 old/new
+      item.history = item.history || [];
+      item.history.push({
+        datetime: stamp,
+        oldContent: item.content || '',
+        newContent: item.content || '',
+        oldColor: item.color || '#ffffff',
+        newColor: item.color || '#ffffff',
+        oldNote: oldNote,
+        newNote: text
+      });
+      if (item.history.length > 10) item.history = item.history.slice(-10);
+      item.note = text;
+      item.modified_datetime = stamp;
       fs.writeFileSync(file, JSON.stringify(data, null, 2));
       vm.$set(vm.todoList[idx], 'note', text);
-      if (vm.detailItem) vm.$set(vm.detailItem, 'note', text);
+      vm.$set(vm.todoList[idx], 'history', item.history);
+      vm.$set(vm.todoList[idx], 'modified_datetime', stamp);
+      if (vm.detailItem) {
+        vm.$set(vm.detailItem, 'note', text);
+        vm.$set(vm.detailItem, 'history', item.history);
+      }
     });
   }
 
