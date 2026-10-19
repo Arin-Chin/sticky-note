@@ -263,11 +263,13 @@
     // 开机自启勾选框
     // 方框只是视觉元素，点击一律落到整行按钮上
     '.sn-auto-mark,.sn-auto-mark *{pointer-events:none}',
-    '.sn-auto-mark{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;',
-    'display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.35}',
-    '.sn-auto-mark svg{width:10px;height:10px;opacity:0}',
-    '.sn-auto-mark.sn-on{opacity:1}',
-    '.sn-auto-mark.sn-on svg{opacity:1}',
+    '.sn-auto-mark{width:16px;height:16px;box-sizing:border-box;border:1.5px solid currentColor;',
+    'border-radius:3px;display:inline-flex;align-items:center;justify-content:center;',
+    'flex-shrink:0;opacity:.4}',
+    '.sn-auto-mark svg{width:11px;height:11px;opacity:0;stroke-width:2.4}',
+    '.sn-auto-mark.sn-on{opacity:1;background:var(--sn-surface-fg,#eaeaea);',
+    'border-color:var(--sn-surface-fg,#eaeaea)}',
+    '.sn-auto-mark.sn-on svg{opacity:1;color:var(--sn-surface,#2b2b2b)}',
 
     // ---- emoji 替换成线性图标后的容器
     '.sn-emoji{display:inline-flex;align-items:center;justify-content:center;vertical-align:-.15em}',
