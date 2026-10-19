@@ -2,8 +2,8 @@
  * sticky note 界面扩展（渲染层注入脚本，不改动编译后的 Vue 代码）
  *
  * 1. 右上角工具条：隐藏到托盘 → 锁定 → 置顶 → 设置（齿轮）
- * 2. 齿轮菜单：便签纸颜色(RGBA)、便签文字颜色(RGBA)、应用界面颜色(RGBA)，
- *    各 9 个预选色；导出到 Excel、使用指南移入菜单
+ * 2. 齿轮菜单：便签纸颜色(RGBA)、便签文字颜色(RGBA)，各 9 个预选色；
+ *    软件提示文字与图标颜色由便签纸颜色自动推导；导出到 Excel、使用指南移入菜单
  * 3. 图标统一为 Apple 风格极简线性 SVG（细描边、圆端头、单色 currentColor）
  *
  * 颜色存 localStorage（随 Electron userData 持久化），不动 settings.json。
@@ -22,7 +22,6 @@
 
   var KEY_PAPER = 'sn.paper';   // 便签纸底色
   var KEY_FONT = 'sn.font';     // 便签文字颜色
-  var KEY_UI = 'sn.ui';         // 软件界面字体颜色
 
   var PAPER_PRESETS = [
     { name: '默认深灰', color: '#2d2d2d' },
@@ -46,18 +45,6 @@
     { name: '紫色', color: '#a29bfe' },
     { name: '品红', color: '#e056fd' }
   ];
-  var UI_PRESETS = [
-    { name: '默认白', color: '#ffffff' },
-    { name: '浅灰', color: '#c8c8c8' },
-    { name: '深灰', color: '#8a8a8a' },
-    { name: '纯黑', color: '#1a1a1a' },
-    { name: '蓝色', color: '#54a0ff' },
-    { name: '绿色', color: '#1dd1a1' },
-    { name: '橙黄', color: '#feca57' },
-    { name: '红色', color: '#ff6b6b' },
-    { name: '紫色', color: '#a29bfe' }
-  ];
-
   // ------------------------------------------------------------ Apple 风线性图标
   // 24x24 viewBox，stroke 由 CSS 统一给（currentColor / 1.6 / round）
   var ICONS = {
@@ -133,7 +120,7 @@
     'font-weight:400;font-style:normal;font-display:swap}',
     "html,body,#app,#app *,.sn-panel,.sn-panel *{font-family:'LXGW WenKai',sans-serif!important}",
     '#app .iconfont{font-family:iconfont!important}',
-    // 便签纸/便签文字默认值（未自定义时保持原样）与应用界面颜色默认值
+    // 便签纸/便签文字默认值；--sn-ui 为提示文字与图标颜色，随纸色自动推导
     ':root{--sn-paper:#2d2d2d;--sn-font:#fff;--sn-ui:rgba(255,255,255,1)}',
     // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单）
     '#app .nav .tools .help-btn,#app .nav .tools .icon-export{display:none!important}',
@@ -153,38 +140,40 @@
 
     // ---- 使用指南卡片：底色=便签纸颜色，文字=便签文字颜色
     '#app .about-window{background-color:var(--sn-paper)!important}',
-    '#app .about-window .about-body,#app .about-window .about-body *{color:var(--sn-font)!important}',
+    '#app .about-window .about-body,#app .about-window .about-body *{color:var(--sn-ui)!important}',
     '#app .about-window .shortcut-item{background:rgba(128,128,128,.18)!important;',
     'border:1px solid rgba(128,128,128,.28)!important}',
     '#app .about-window .shortcut-item .key{background:rgba(128,128,128,.28)!important}',
+    // 卡片改跟随便签纸颜色后，圆角会露出底色，索性全改方角
+    '#app .about-window,#app .about-window *{border-radius:0!important}',
 
     // ---- 便签文字颜色（只作用于便签内容）
     'body.sn-font-custom #app .root .display p{color:var(--sn-font)!important}',
 
-    // ---- 导航栏文字与工具图标跟随应用界面颜色（含激活态；hover 保留透明度变化）
+    // ---- 导航栏文字与工具图标跟随 --sn-ui（由便签纸颜色自动推导，含激活态）
     '#app .nav .link a,#app .nav .link a.router-link-exact-active,#app .nav .link .divider{color:var(--sn-ui)}',
     '#app .nav .tools i{color:var(--sn-ui)}',
 
     // ---- 软件界面字体颜色（chrome 文字，不含便签内容）
-    'body.sn-ui-custom #app{color:var(--sn-ui)!important}',
-    'body.sn-ui-custom #app .drag-nav b,body.sn-ui-custom #app .drag-nav i,',
-    'body.sn-ui-custom #app .nav,body.sn-ui-custom #app .nav .link a,',
-    'body.sn-ui-custom #app .nav .link .divider,body.sn-ui-custom #app .nav .tools i,',
-    'body.sn-ui-custom #app .nav .tools .tool-btn,body.sn-ui-custom #app .nav .tools .sn-btn,',
-    'body.sn-ui-custom #app .empty-state,body.sn-ui-custom #app .empty-state p,',
-    'body.sn-ui-custom #app .display .index,body.sn-ui-custom #app .display .history-icon,',
-    'body.sn-ui-custom #app .list .group,body.sn-ui-custom #app .edit-textarea,',
-    'body.sn-ui-custom #app .edit-shortcuts span,body.sn-ui-custom #app .switch-label,',
-    'body.sn-ui-custom #app .modal h3,body.sn-ui-custom #app .modal-body>p,',
-    'body.sn-ui-custom #app .modal-body label,body.sn-ui-custom #app .modal-body small,',
-    'body.sn-ui-custom #app .detail-item:not(.current) p,body.sn-ui-custom #app .detail-item small,',
-    'body.sn-ui-custom #app .history-item .history-time,body.sn-ui-custom #app .change .old,',
-    'body.sn-ui-custom #app .change .new,body.sn-ui-custom #app .change .icon-arrow-right,',
-    'body.sn-ui-custom #app .delete-confirm-body p,body.sn-ui-custom #app .delete-confirm-item,',
-    'body.sn-ui-custom #app .setting-section label,body.sn-ui-custom #app .setting-section .setting-hint,',
-    'body.sn-ui-custom #app .upload-area span,body.sn-ui-custom #app .upload-area small,',
-    'body.sn-ui-custom #app .upload-area i,body.sn-ui-custom #app .btn-export,',
-    'body.sn-ui-custom #app .about-body,body.sn-ui-custom #app .about-body *',
+    'body.sn-paper-custom #app{color:var(--sn-ui)!important}',
+    'body.sn-paper-custom #app .drag-nav b,body.sn-paper-custom #app .drag-nav i,',
+    'body.sn-paper-custom #app .nav,body.sn-paper-custom #app .nav .link a,',
+    'body.sn-paper-custom #app .nav .link .divider,body.sn-paper-custom #app .nav .tools i,',
+    'body.sn-paper-custom #app .nav .tools .tool-btn,body.sn-paper-custom #app .nav .tools .sn-btn,',
+    'body.sn-paper-custom #app .empty-state,body.sn-paper-custom #app .empty-state p,',
+    'body.sn-paper-custom #app .display .index,body.sn-paper-custom #app .display .history-icon,',
+    'body.sn-paper-custom #app .list .group,body.sn-paper-custom #app .edit-textarea,',
+    'body.sn-paper-custom #app .edit-shortcuts span,body.sn-paper-custom #app .switch-label,',
+    'body.sn-paper-custom #app .modal h3,body.sn-paper-custom #app .modal-body>p,',
+    'body.sn-paper-custom #app .modal-body label,body.sn-paper-custom #app .modal-body small,',
+    'body.sn-paper-custom #app .detail-item:not(.current) p,body.sn-paper-custom #app .detail-item small,',
+    'body.sn-paper-custom #app .history-item .history-time,body.sn-paper-custom #app .change .old,',
+    'body.sn-paper-custom #app .change .new,body.sn-paper-custom #app .change .icon-arrow-right,',
+    'body.sn-paper-custom #app .delete-confirm-body p,body.sn-paper-custom #app .delete-confirm-item,',
+    'body.sn-paper-custom #app .setting-section label,body.sn-paper-custom #app .setting-section .setting-hint,',
+    'body.sn-paper-custom #app .upload-area span,body.sn-paper-custom #app .upload-area small,',
+    'body.sn-paper-custom #app .upload-area i,body.sn-paper-custom #app .btn-export,',
+    'body.sn-paper-custom #app .about-body,body.sn-paper-custom #app .about-body *',
     '{color:var(--sn-ui)!important}',
 
     // ---- 新增按钮
@@ -277,14 +266,19 @@
     return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + alpha + ')';
   }
 
-  // ponytail: 以默认深色底 (#2d2d2d) 估算对比度，足够决定面板用深字还是浅字
-  function isLightOnDark(hex, alpha) {
+  // ponytail: 以默认深色底 (#2d2d2d) 估算便签纸明暗，足够决定用深字还是浅字
+  function isLightPaper(hex, alpha) {
     var c = parseHex(hex);
     var bg = { r: 45, g: 45, b: 45 };
     var r = c.r * alpha + bg.r * (1 - alpha);
     var g = c.g * alpha + bg.g * (1 - alpha);
     var b = c.b * alpha + bg.b * (1 - alpha);
     return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+  }
+
+  // 软件提示文字/图标颜色由便签纸颜色自动决定：浅纸用深字，深纸用浅字
+  function uiColorFor(c) {
+    return isLightPaper(c.hex, c.alpha) ? '#1a1a1a' : '#ffffff';
   }
 
   function loadColor(key, fallbackHex) {
@@ -302,38 +296,33 @@
     try { localStorage.setItem(key, JSON.stringify({ hex: hex, alpha: alpha })); } catch (e) { /* 忽略 */ }
   }
 
-  var panelRefs = null;
-
-  // 界面字体颜色变化时同步面板自身：底色与文字保持高对比，编辑取色时也看得清
+  // 面板自身也跟着便签纸明暗切换，保证取色时文字和图标都看得清
   function syncPanelContrast(c) {
-    if (!panelRefs) return;
     var root = document.documentElement;
-    if (isLightOnDark(c.hex, c.alpha)) {
-      root.style.setProperty('--sn-surface', '#2b2b2b');
-      root.style.setProperty('--sn-surface-fg', '#f2f2f2');
-      root.style.setProperty('--sn-surface-dim', 'rgba(242,242,242,.6)');
-    } else {
+    root.style.setProperty('--sn-ui', uiColorFor(c));
+    if (isLightPaper(c.hex, c.alpha)) {
       root.style.setProperty('--sn-surface', '#f7f7f7');
       root.style.setProperty('--sn-surface-fg', '#1c1c1c');
       root.style.setProperty('--sn-surface-dim', 'rgba(28,28,28,.55)');
+    } else {
+      root.style.setProperty('--sn-surface', '#2b2b2b');
+      root.style.setProperty('--sn-surface-fg', '#f2f2f2');
+      root.style.setProperty('--sn-surface-dim', 'rgba(242,242,242,.6)');
     }
   }
 
   function applyPaper(c) {
     document.documentElement.style.setProperty('--sn-paper', hexToRgba(c.hex, c.alpha));
+    syncPanelContrast(c);
     document.body.classList.add('sn-paper-custom');
   }
   function applyFont(c) {
     document.documentElement.style.setProperty('--sn-font', hexToRgba(c.hex, c.alpha));
     document.body.classList.add('sn-font-custom');
   }
-  function applyUi(c) {
-    document.documentElement.style.setProperty('--sn-ui', hexToRgba(c.hex, c.alpha));
-    document.body.classList.add('sn-ui-custom');
-    syncPanelContrast(c);
-  }
   function resetPaper() {
     document.documentElement.style.removeProperty('--sn-paper');
+    syncPanelContrast({ hex: '#2d2d2d', alpha: 1 });
     document.body.classList.remove('sn-paper-custom');
     try { localStorage.removeItem(KEY_PAPER); } catch (e) { /* 忽略 */ }
   }
@@ -341,14 +330,6 @@
     document.documentElement.style.removeProperty('--sn-font');
     document.body.classList.remove('sn-font-custom');
     try { localStorage.removeItem(KEY_FONT); } catch (e) { /* 忽略 */ }
-  }
-  function resetUi() {
-    document.documentElement.style.removeProperty('--sn-ui');
-    document.body.classList.remove('sn-ui-custom');
-    document.documentElement.style.removeProperty('--sn-surface');
-    document.documentElement.style.removeProperty('--sn-surface-fg');
-    document.documentElement.style.removeProperty('--sn-surface-dim');
-    try { localStorage.removeItem(KEY_UI); } catch (e) { /* 忽略 */ }
   }
 
   // ---------------------------------------------------------------- 齿轮面板
@@ -458,7 +439,6 @@
 
     var paperState = loadColor(KEY_PAPER, '#2d2d2d');
     var fontState = loadColor(KEY_FONT, '#ffffff');
-    var uiState = loadColor(KEY_UI, '#ffffff');
 
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
@@ -471,12 +451,6 @@
       applyFont(fontState);
     }, resetFont, '#ffffff', '应用');
     panel.appendChild(fontSec.node);
-
-    var uiSec = buildSection('应用界面颜色', UI_PRESETS, uiState, function () {
-      saveColor(KEY_UI, uiState.hex, uiState.alpha);
-      applyUi(uiState);
-    }, resetUi, '#ffffff', '应用');
-    panel.appendChild(uiSec.node);
 
     var split = document.createElement('div');
     split.className = 'sn-split';
@@ -495,8 +469,7 @@
     panel.appendChild(menu);
 
     document.body.appendChild(panel);
-    panelRefs = { paper: paperSec, font: fontSec, ui: uiSec };
-    syncPanelContrast(uiState);
+    syncPanelContrast(paperState);
   }
 
   function panelOpen() { return panel && !panel.classList.contains('sn-hidden'); }
@@ -546,9 +519,13 @@
     if (localStorage.getItem(KEY_FONT)) applyFont(loadColor(KEY_FONT, '#ffffff'));
   }
 
-  // 启动时套用已保存的界面字体颜色
-  function restoreUi() {
-    if (localStorage.getItem(KEY_UI)) applyUi(loadColor(KEY_UI, '#ffffff'));
+  // 启动时套用已保存的颜色：提示文字/图标颜色由便签纸颜色自动推导
+  function restoreColors() {
+    try { localStorage.removeItem('sn.ui'); } catch (e) { /* 清理旧版设置 */ }
+    var paper = loadColor(KEY_PAPER, '#2d2d2d');
+    syncPanelContrast(paper);
+    if (localStorage.getItem(KEY_PAPER)) applyPaper(paper);
+    if (localStorage.getItem(KEY_FONT)) applyFont(loadColor(KEY_FONT, '#ffffff'));
   }
 
   var style = document.createElement('style');
@@ -608,7 +585,7 @@
 
   function boot() {
     document.head.appendChild(style);
-    restoreUi();
+    restoreColors();
     inject();
     deEmoji(document.getElementById('app'));
     var app = document.getElementById('app');
