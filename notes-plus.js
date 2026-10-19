@@ -128,8 +128,13 @@
   };
 
   var css = [
-    // 应用界面颜色默认值（未自定义时也是白色，自定义后跟随 --sn-ui）
-    ':root{--sn-ui:rgba(255,255,255,1)}',
+    // 全应用字体：霞鹜文楷 Regular（随包附带，不依赖系统安装）
+    "@font-face{font-family:'LXGW WenKai';src:url('app://./fonts/LXGWWenKai-Regular.ttf') format('truetype');",
+    'font-weight:400;font-style:normal;font-display:swap}',
+    "html,body,#app,#app *,.sn-panel,.sn-panel *{font-family:'LXGW WenKai',sans-serif!important}",
+    '#app .iconfont{font-family:iconfont!important}',
+    // 便签纸/便签文字默认值（未自定义时保持原样）与应用界面颜色默认值
+    ':root{--sn-paper:#2d2d2d;--sn-font:#fff;--sn-ui:rgba(255,255,255,1)}',
     // ---- 工具条按钮显隐（导出 / 指南移入齿轮菜单）
     '#app .nav .tools .help-btn,#app .nav .tools .icon-export{display:none!important}',
 
@@ -145,6 +150,13 @@
     '#app{background-color:var(--sn-paper,#2d2d2d)}',
     'body.sn-paper-custom #app{background-color:var(--sn-paper)!important}',
     'body.sn-paper-custom .bg-color-layer{display:none!important}',
+
+    // ---- 使用指南卡片：底色=便签纸颜色，文字=便签文字颜色
+    '#app .about-window{background-color:var(--sn-paper)!important}',
+    '#app .about-window .about-body,#app .about-window .about-body *{color:var(--sn-font)!important}',
+    '#app .about-window .shortcut-item{background:rgba(128,128,128,.18)!important;',
+    'border:1px solid rgba(128,128,128,.28)!important}',
+    '#app .about-window .shortcut-item .key{background:rgba(128,128,128,.28)!important}',
 
     // ---- 便签文字颜色（只作用于便签内容）
     'body.sn-font-custom #app .root .display p{color:var(--sn-font)!important}',

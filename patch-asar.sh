@@ -232,6 +232,16 @@ rep('/background.js',
     'n.app.on("ready",async()=>{try{await n.session.defaultSession.clearCache()}catch(e){}',
     null);
 
+// 6.10 随包附带 LXGW WenKai Regular 字体（不依赖系统安装）
+if (process.env.SN_EXTRA_FONT) {
+  addFile('/fonts/LXGWWenKai-Regular.ttf', fs.readFileSync(process.env.SN_EXTRA_FONT));
+  if (process.env.SN_EXTRA_FONT_LICENSE) {
+    addFile('/fonts/OFL.txt', fs.readFileSync(process.env.SN_EXTRA_FONT_LICENSE));
+  }
+} else {
+  console.log('  未提供 SN_EXTRA_FONT，跳过字体注入');
+}
+
 // 6.5 sourcemap / 残留字符串
 repAll('donate', '');
 repAll('Donate', '');
@@ -280,6 +290,8 @@ PATCHEOF
 OUT="${1:-app-patched.asar}"
 # 界面扩展脚本（齿轮菜单 + 置顶按钮），默认取仓库里的 notes-plus.js
 export SN_EXTRA_JS="${SN_EXTRA_JS:-$(cd "$(dirname "$0")" && pwd)/notes-plus.js}"
+export SN_EXTRA_FONT="${SN_EXTRA_FONT:-$(cd "$(dirname "$0")" && pwd)/fonts/LXGWWenKai-Regular.ttf}"
+export SN_EXTRA_FONT_LICENSE="${SN_EXTRA_FONT_LICENSE:-$(cd "$(dirname "$0")" && pwd)/fonts/OFL.txt}"
 
 BIN="$APP_DIR/todo-list"
 TMP="$(mktemp -d)"

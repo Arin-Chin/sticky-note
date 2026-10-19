@@ -176,6 +176,10 @@ EOF
 chmod +x "$ROOT/install-desktop.sh"
 # 图标源文件一并放进压缩包，方便自行换图标重新构建
 cp -f "$ICON_SVG" "$ROOT/sticky-note.${ICON_SVG##*.}"
+# 字体源文件一并放入压缩包（含 OFL 许可）
+mkdir -p "$ROOT/fonts"
+cp -f "$PWD/fonts/LXGWWenKai-Regular.ttf" "$ROOT/fonts/"
+cp -f "$PWD/fonts/OFL.txt" "$ROOT/fonts/"
 
 cat > "$ROOT/README.txt" <<EOF
 $APP_NAME $VERSION 免安装版
