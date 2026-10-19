@@ -152,6 +152,17 @@
 
     // ---- 导航栏文字与工具图标跟随 --sn-ui（由便签纸颜色自动推导，含激活态）
     '#app .nav .link a,#app .nav .link a.router-link-exact-active,#app .nav .link .divider{color:var(--sn-ui)}',
+
+    // ---- 待办 / 已完成：两个方块按钮，当前项填充高亮
+    '#app .nav .link{align-items:center;gap:6px}',
+    '#app .nav .link .divider{display:none!important}',
+    '#app .nav .link a{display:flex;align-items:center;justify-content:center;',
+    'min-width:46px;height:26px;padding:0 6px;box-sizing:border-box;',
+    'border:1px solid currentColor;border-radius:0;font-size:12px!important;',
+    'opacity:.5;text-decoration:none;transition:background .18s,opacity .18s}',
+    '#app .nav .link a:hover{opacity:.8}',
+    '#app .nav .link a.router-link-exact-active{opacity:1;font-weight:500;',
+    'background:rgba(128,128,128,.3);box-shadow:inset 0 0 0 1px currentColor}',
     '#app .nav .tools i{color:var(--sn-ui)}',
 
     // ---- 软件界面字体颜色（chrome 文字，不含便签内容）
