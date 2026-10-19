@@ -226,6 +226,12 @@ rep('/background.js',
 rep('/background.js',
     '{type:"separator"},{label:"使用指南",click:()=>{i&&i(),e&&e()}}',
     '', null);
+// 6.9 启动时清一次 HTTP 磁盘缓存，避免 app:// 继续用旧的 index.html / notes-plus.js
+rep('/background.js',
+    'n.app.on("ready",async()=>{',
+    'n.app.on("ready",async()=>{try{await n.session.defaultSession.clearCache()}catch(e){}',
+    null);
+
 // 6.5 sourcemap / 残留字符串
 repAll('donate', '');
 repAll('Donate', '');
