@@ -133,6 +133,10 @@
     '#app .nav .tools .iconfont::before,.sn-btn::before{width:17px;height:17px}',
     '#app .nav .tools .lock-btn::before{width:18px;height:18px}',
 
+    // ---- 全窗口方角：去掉 #app 圆角/阴影/边框和背景层圆角（主窗口与指南一致）
+    '#app{border-radius:0!important;box-shadow:none!important;border:none!important}',
+    '#app .bg-image-layer,#app .bg-image-layer::after,#app .bg-color-layer{border-radius:0!important}',
+
     // ---- 便签纸颜色
     '#app{background-color:var(--sn-paper,#2d2d2d)}',
     'body.sn-paper-custom #app{background-color:var(--sn-paper)!important}',
@@ -656,13 +660,13 @@
   function markAbout() {
     if (String(location.hash).indexOf('about') < 0 || !document.body) return;
     document.body.classList.add('sn-about');
-    var app = document.getElementById('app');
-    if (app) app.classList.add('no-rounded');
   }
 
   function boot() {
     document.head.appendChild(style);
     markAbout();
+    var rootApp = document.getElementById('app');
+    if (rootApp) rootApp.classList.add('no-rounded');
     window.addEventListener('hashchange', markAbout);
     restoreColors();
     inject();
