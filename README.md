@@ -25,6 +25,21 @@ UOS / Deepin「桌面便签」（Electron）的精简本地版，**免安装压�
 | 字体 | 全应用霞鹜文楷 / LXGW WenKai Regular，字体随包附带，无需系统安装 |
 | 导出 / 指南 | 原工具栏图标收进设置齿轮菜单 |
 
+## Windows 免安装版
+
+```text
+sticky-note-1.1.0-windows-x64.zip
+```
+
+解压后双击 `sticky-note.exe` 即可，无需安装。数据在 `%APPDATA%\todo-list`。
+未签名程序可能触发 SmartScreen，选择「更多信息 → 仍要运行」。
+
+自行构建（Linux/macOS 上交叉打包）：
+
+```bash
+WIN_ARCH=x64 bash build-windows.sh     # 或 WIN_ARCH=arm64
+```
+
 ## 使用
 
 ```bash
