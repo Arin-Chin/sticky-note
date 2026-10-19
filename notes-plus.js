@@ -175,8 +175,10 @@
     '#app .sn-detail-modal .modal-header h3{font-size:0!important}',
     '#app .sn-detail-modal .modal-header h3::before{content:"待办详情";font-size:16px;font-weight:500}',
     '#app .sn-detail-modal .history-changes{display:none!important}',
-    '#app .sn-detail-modal .sn-history-title{font-size:12px;line-height:1.5;margin-top:2px;',
-    'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sn-ui,#fff)}',
+    '#app .sn-detail-modal .sn-history-title,#app .sn-detail-modal .sn-history-note{',
+    'font-size:12px;line-height:1.5;margin-top:2px;white-space:nowrap;overflow:hidden;',
+    'text-overflow:ellipsis;color:var(--sn-ui,#fff)}',
+    '#app .sn-detail-modal .sn-history-note{margin-top:0}',
     '#app .sn-detail-modal .detail-item.current p{outline:none;cursor:text;white-space:pre-wrap;',
     'word-break:break-word;min-height:2em}',
     '#app .sn-detail-modal .detail-item.current p:focus{box-shadow:inset 0 0 0 1px currentColor}',
@@ -272,7 +274,7 @@
     '.sn-panel.sn-hidden{display:none}',
     '.sn-sec{margin-bottom:12px}',
     '.sn-sec:last-child{margin-bottom:0}',
-    '.sn-sec>label{display:block;color:var(--sn-surface-dim,rgba(255,255,255,.55));font-size:11px;margin-bottom:6px}',
+    '.sn-sec>label{display:block;color:var(--sn-surface-fg,#fff);font-size:11px;margin-bottom:6px}',
     '.sn-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}',
     '.sn-sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;box-sizing:border-box;',
     'transition:transform .15s,border-color .15s}',
@@ -285,27 +287,27 @@
     'background:rgba(150,150,150,.3);outline:none}',
     '.sn-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;',
     'border-radius:50%;background:#54a0ff;cursor:pointer;border:1px solid #fff}',
-    '.sn-alpha{width:34px;text-align:right;color:var(--sn-surface-dim,rgba(255,255,255,.6));',
+    '.sn-alpha{width:34px;text-align:right;color:var(--sn-surface-fg,#fff);',
     'font-variant-numeric:tabular-nums}',
     '.sn-val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;',
-    'color:var(--sn-surface-dim,rgba(255,255,255,.5));margin:-2px 0 8px;letter-spacing:.2px}',
+    'color:var(--sn-surface-fg,#fff);margin:-2px 0 8px;letter-spacing:.2px}',
     '.sn-apply{width:100%;padding:6px;border:1px solid rgba(150,150,150,.3);border-radius:6px;',
     'background:rgba(150,150,150,.12);color:var(--sn-surface-fg,#eaeaea);cursor:pointer;font-size:12px;',
     'transition:background .18s}',
     '.sn-apply:hover{background:rgba(150,150,150,.22)}',
-    '.sn-reset{background:none;border:none;color:var(--sn-surface-dim,rgba(255,255,255,.45));cursor:pointer;',
+    '.sn-reset{background:none;border:none;color:var(--sn-surface-fg,#fff);cursor:pointer;',
     'font-size:11px;padding:0}',
     '.sn-reset:hover{color:var(--sn-surface-fg,rgba(255,255,255,.85))}',
-    '.sn-hint{color:var(--sn-surface-dim,rgba(255,255,255,.35));font-size:11px;margin-top:4px}',
+    '.sn-hint{color:var(--sn-surface-fg,#fff);font-size:11px;margin-top:4px}',
     '.sn-split{height:1px;background:rgba(150,150,150,.22);margin:10px 0}',
     '.sn-menu{display:flex;flex-direction:column;gap:2px}',
     '.sn-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:none;',
-    'border-radius:6px;background:none;color:var(--sn-surface-dim,rgba(255,255,255,.55));cursor:pointer;font-size:12px;',
+    'border-radius:6px;background:none;color:var(--sn-surface-fg,#fff);cursor:pointer;font-size:12px;',
     'text-align:left;transition:background .18s,color .18s}',
     '.sn-menu button:hover{background:rgba(150,150,150,.18);color:var(--sn-surface-fg,#eaeaea)}',
     // 文字在 span 里，原程序 *{color:#fff} 会命中 span 自身而盖掉继承
     '.sn-menu button span{color:inherit}',
-    '.sn-menu button svg{flex-shrink:0}',
+    '.sn-menu button svg{flex-shrink:0;color:var(--sn-surface-fg,#fff)!important;stroke:currentColor}',
     // 开机自启勾选框
     // 方框只是视觉元素，点击一律落到整行按钮上
     '.sn-auto-mark,.sn-auto-mark *{pointer-events:none}',
@@ -366,19 +368,46 @@
     try { localStorage.setItem(key, JSON.stringify({ hex: hex, alpha: alpha })); } catch (e) { /* 忽略 */ }
   }
 
-  // 面板自身也跟着便签纸明暗切换，保证取色时文字和图标都看得清
-  function syncPanelContrast(c) {
+  function composite(c, alpha, bg) {
+    return {
+      r: c.r * alpha + bg.r * (1 - alpha),
+      g: c.g * alpha + bg.g * (1 - alpha),
+      b: c.b * alpha + bg.b * (1 - alpha)
+    };
+  }
+
+  function luminance(c) {
+    function f(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+    return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b);
+  }
+
+  function contrast(a, b) {
+    var l1 = luminance(a), l2 = luminance(b);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+
+  function rgbCss(c) { return 'rgb(' + Math.round(c.r) + ',' + Math.round(c.g) + ',' + Math.round(c.b) + ')'; }
+
+  // 设置卡片背景=便签纸色、文字/图标=便签文字色；
+  // 对比度不足(如白字+白纸)时退回黑/白中更清楚的一种，保证可视性。
+  function syncPanelContrast(paper) {
     var root = document.documentElement;
-    root.style.setProperty('--sn-ui', uiColorFor(c));
-    if (isLightPaper(c.hex, c.alpha)) {
-      root.style.setProperty('--sn-surface', '#f7f7f7');
-      root.style.setProperty('--sn-surface-fg', '#1c1c1c');
-      root.style.setProperty('--sn-surface-dim', 'rgba(28,28,28,.55)');
+    root.style.setProperty('--sn-ui', uiColorFor(paper));
+    var bg = composite(parseHex(paper.hex), paper.alpha, { r: 45, g: 45, b: 45 });
+    var font = loadColor(KEY_FONT, '#ffffff');
+    var fg = composite(parseHex(font.hex), font.alpha, bg);
+    var fgCss;
+    if (contrast(fg, bg) >= 4.5) {
+      fgCss = hexToRgba(font.hex, font.alpha);
     } else {
-      root.style.setProperty('--sn-surface', '#2b2b2b');
-      root.style.setProperty('--sn-surface-fg', '#f2f2f2');
-      root.style.setProperty('--sn-surface-dim', 'rgba(242,242,242,.6)');
+      var dark = { r: 26, g: 26, b: 26 }, light = { r: 255, g: 255, b: 255 };
+      fgCss = contrast(light, bg) >= contrast(dark, bg) ? '#ffffff' : '#1a1a1a';
     }
+    root.style.setProperty('--sn-surface', hexToRgba(paper.hex, paper.alpha));
+    root.style.setProperty('--sn-surface-fg', fgCss);
+    // 次级文字：略降透明度，但对比度不够时保持实色
+    var dim = fgCss.indexOf('rgba') === 0 ? fgCss.replace(/,1\)$/, ',.72)') : fgCss;
+    root.style.setProperty('--sn-surface-dim', dim);
   }
 
   function applyPaper(c) {
@@ -389,6 +418,7 @@
   function applyFont(c) {
     document.documentElement.style.setProperty('--sn-font', hexToRgba(c.hex, c.alpha));
     document.body.classList.add('sn-font-custom');
+    syncPanelContrast(loadColor(KEY_PAPER, '#2d2d2d'));
   }
   function resetPaper() {
     document.documentElement.style.removeProperty('--sn-paper');
@@ -400,6 +430,7 @@
     document.documentElement.style.removeProperty('--sn-font');
     document.body.classList.remove('sn-font-custom');
     try { localStorage.removeItem(KEY_FONT); } catch (e) { /* 忽略 */ }
+    syncPanelContrast(loadColor(KEY_PAPER, '#2d2d2d'));
   }
 
   // ---------------------------------------------------------------- 齿轮面板
@@ -715,26 +746,40 @@
     var records = (vm && vm.detailItem && vm.detailItem.history) ? vm.detailItem.history.slice().reverse() : [];
     Array.prototype.forEach.call(document.querySelectorAll('#app .sn-detail-modal .history-item'), function (item, i) {
       var rec = records[i];
-      var title;
+      var title, note;
       if (rec) {
         title = noteTitle(rec);
+        note = rec.newNote || rec.oldNote || '';
       } else {
         var newEl = item.querySelector('.history-changes .change .new');
         var oldEl = item.querySelector('.history-changes .change .old');
         title = noteTitle({ newContent: newEl ? newEl.textContent : (oldEl ? oldEl.textContent : '') });
+        note = '';
       }
-      var div = item.querySelector('.sn-history-title');
-      if (!div) {
-        div = document.createElement('div');
-        div.className = 'sn-history-title';
-        var time = item.querySelector('.history-time');
-        if (time && time.nextSibling) item.insertBefore(div, time.nextSibling);
-        else item.appendChild(div);
+      if (!note && vm && vm.detailItem && vm.detailItem.note) note = vm.detailItem.note;
+      note = String(note).replace(/\s+/g, ' ').trim();
+      if (note.length > 80) note = note.slice(0, 80) + '…';
+      if (!note) note = '(无)';
+
+      var time = item.querySelector('.history-time');
+      var titleEl = item.querySelector('.sn-history-title');
+      var noteEl = item.querySelector('.sn-history-note');
+      if (!titleEl) {
+        titleEl = document.createElement('div');
+        titleEl.className = 'sn-history-title';
+        if (time && time.nextSibling) item.insertBefore(titleEl, time.nextSibling);
+        else item.appendChild(titleEl);
       }
-      if (div.textContent !== title) {
-        div.textContent = title;
-        div.title = title;
+      if (!noteEl) {
+        noteEl = document.createElement('div');
+        noteEl.className = 'sn-history-note';
+        if (titleEl.nextSibling) item.insertBefore(noteEl, titleEl.nextSibling);
+        else item.appendChild(noteEl);
       }
+      var titleText = '【标题】：' + title;
+      var noteText = '【笔记】：' + note;
+      if (titleEl.textContent !== titleText) { titleEl.textContent = titleText; titleEl.title = titleText; }
+      if (noteEl.textContent !== noteText) { noteEl.textContent = noteText; noteEl.title = noteText; }
     });
 
     // 笔记来自独立 note 字段，主列表 content 只作为标题

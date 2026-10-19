@@ -230,6 +230,11 @@ rep('/background.js',
     null);
 
 
+// 6.8.3 标题修改历史同时记录当时的笔记，供详情分两行展示
+repAll('i.history.push({datetime:O(),oldContent:i.content,newContent:t,oldColor:i.color,newColor:r||i.color})',
+    'i.history.push({datetime:O(),oldContent:i.content,newContent:t,oldColor:i.color,newColor:r||i.color,oldNote:i.note||"",newNote:i.note||""})',
+    1);
+
 // 6.9 启动时清一次 HTTP 磁盘缓存，避免 app:// 继续用旧的 index.html / notes-plus.js
 rep('/background.js',
     'n.app.on("ready",async()=>{',
