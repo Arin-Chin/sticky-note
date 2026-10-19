@@ -219,8 +219,8 @@ rep('/background.js',
     'a=[{label:"退出",role:"quit"}];M.setContextMenu(n.Menu.buildFromTemplate(a))',
     null);
 rep('/background.js',
-    'M.on("click",()=>{t&&t()}),M.on("double-click",()=>{t&&t()})',
-    'M.on("double-click",()=>{t&&t()})',
+    'M.on("click",()=>{t&&t()}),M.on("double-click",()=>{t&&t()}),M.on("right-click",()=>{M.popUpContextMenu()})',
+    'M.on("click",()=>{re()}),M.on("right-click",()=>{M.popUpContextMenu()})',
     null);
 
 // 6.8.2 开机自启状态读写 IPC（供设置齿轮菜单使用）
