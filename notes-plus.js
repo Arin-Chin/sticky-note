@@ -145,6 +145,13 @@
     'border:1px solid rgba(128,128,128,.28)!important}',
     '#app .about-window .shortcut-item .key{background:rgba(128,128,128,.28)!important}',
 
+    // ---- 使用指南是独立窗口：外层 #app 的 12px 圆角/阴影会从方角卡片周围漏出黑角
+    'body.sn-about{background:var(--sn-paper,#2d2d2d)!important}',
+    'body.sn-about #app{border-radius:0!important;box-shadow:none!important;border:none!important;',
+    'background-color:var(--sn-paper,#2d2d2d)!important}',
+    'body.sn-about .about-window{border-radius:0!important;box-shadow:none!important;',
+    'background-color:var(--sn-paper,#2d2d2d)!important}',
+
     // ---- 修改详情卡片：背景=便签纸颜色，文字=软件提示色；当前内容做成笔记区域
     '#app .modal .modal-content{background:var(--sn-paper,#2d2d2d)!important;',
     'color:var(--sn-ui,#fff)!important;border-radius:0!important}',
@@ -645,8 +652,18 @@
     });
   }
 
+  // 使用指南窗口：整窗方角、无阴影，避免方角卡片四角透出黑边
+  function markAbout() {
+    if (String(location.hash).indexOf('about') < 0 || !document.body) return;
+    document.body.classList.add('sn-about');
+    var app = document.getElementById('app');
+    if (app) app.classList.add('no-rounded');
+  }
+
   function boot() {
     document.head.appendChild(style);
+    markAbout();
+    window.addEventListener('hashchange', markAbout);
     restoreColors();
     inject();
     deEmoji(document.getElementById('app'));
