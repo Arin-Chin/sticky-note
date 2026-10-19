@@ -171,6 +171,16 @@
     '#app .modal .detail-item.current p{background:rgba(128,128,128,.12)!important;',
     'border:1px solid rgba(128,128,128,.35);border-radius:0;padding:10px}',
     '#app .modal .history-item{background:rgba(128,128,128,.08)!important;border-radius:0!important}',
+    // 详情标题改名；历史只保留时间 + 待办标题
+    '#app .sn-detail-modal .modal-header h3{font-size:0!important}',
+    '#app .sn-detail-modal .modal-header h3::before{content:"待办详情";font-size:16px;font-weight:500}',
+    '#app .sn-detail-modal .history-changes{display:none!important}',
+    '#app .sn-detail-modal .sn-history-title{font-size:12px;line-height:1.5;margin-top:2px;',
+    'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sn-ui,#fff)}',
+    '#app .sn-detail-modal .detail-item.current p{outline:none;cursor:text;white-space:pre-wrap;',
+    'word-break:break-word;min-height:2em}',
+    '#app .sn-detail-modal .detail-item.current p:focus{box-shadow:inset 0 0 0 1px currentColor}',
+
     // 卡片改跟随便签纸颜色后，圆角会露出底色，索性全改方角
     '#app .about-window,#app .about-window *{border-radius:0!important}',
 
@@ -656,6 +666,85 @@
     });
   }
 
+  // ---------------------------------------------------------------- 待办详情
+  function noteTitle(record) {
+    var raw = (record && (record.newContent || record.oldContent)) || '';
+    var first = String(raw).split('\n')[0].trim();
+    if (!first) first = record && record.newColor ? '(颜色调整)' : '(无标题)';
+    return first.length > 60 ? first.slice(0, 60) + '…' : first;
+  }
+
+  function saveNoteText(el, text) {
+    var root = document.querySelector('#app .root');
+    var vm = root && root.__vue__;
+    if (!vm || typeof vm.edited !== 'function') return Promise.reject(new Error('no vm'));
+    var idx = vm.detailIndex;
+    if (idx == null || idx < 0) return Promise.reject(new Error('no index'));
+    vm.editIndex = idx;
+    vm.editContent = text;
+    vm.tempColor = (vm.todoList[idx] && vm.todoList[idx].color) || '#ffffff';
+    return Promise.resolve().then(function () { vm.edited(); }).then(function () {
+      vm.detailItem = vm.todoList[idx];
+    });
+  }
+
+  function setupDetail() {
+    var note = document.querySelector('#app .modal .detail-item.current p');
+    if (!note) return;
+    var modal = note.closest('.modal');
+    if (modal) modal.classList.add('sn-detail-modal');
+
+    // 历史条目：只显示时间 + 待办标题（内容随记录更新，不保留旧标题）
+    var rootVm = document.querySelector('#app .root');
+    var vm = rootVm && rootVm.__vue__;
+    var records = (vm && vm.detailItem && vm.detailItem.history) ? vm.detailItem.history.slice().reverse() : [];
+    Array.prototype.forEach.call(document.querySelectorAll('#app .sn-detail-modal .history-item'), function (item, i) {
+      var rec = records[i];
+      var title;
+      if (rec) {
+        title = noteTitle(rec);
+      } else {
+        var newEl = item.querySelector('.history-changes .change .new');
+        var oldEl = item.querySelector('.history-changes .change .old');
+        title = noteTitle({ newContent: newEl ? newEl.textContent : (oldEl ? oldEl.textContent : '') });
+      }
+      var div = item.querySelector('.sn-history-title');
+      if (!div) {
+        div = document.createElement('div');
+        div.className = 'sn-history-title';
+        var time = item.querySelector('.history-time');
+        if (time && time.nextSibling) item.insertBefore(div, time.nextSibling);
+        else item.appendChild(div);
+      }
+      if (div.textContent !== title) {
+        div.textContent = title;
+        div.title = title;
+      }
+    });
+
+    if (note.dataset.snEditable) return;
+    note.dataset.snEditable = '1';
+    note.setAttribute('contenteditable', 'true');
+    note.setAttribute('spellcheck', 'false');
+    var before = note.textContent;
+
+    note.addEventListener('focus', function () { before = note.textContent; });
+    note.addEventListener('paste', function (e) {
+      e.preventDefault();
+      var text = (e.clipboardData || window.clipboardData).getData('text');
+      if (text) document.execCommand('insertText', false, text);
+    });
+    note.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { note.textContent = before; note.blur(); }
+      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); note.blur(); }
+    });
+    note.addEventListener('blur', function () {
+      var text = note.textContent.replace(/\s+$/, '');
+      if (!text || text === before) { note.textContent = before; return; }
+      saveNoteText(note, text).catch(function () { note.textContent = before; });
+    });
+  }
+
   // 使用指南窗口：整窗方角、无阴影，避免方角卡片四角透出黑边
   function markAbout() {
     if (String(location.hash).indexOf('about') < 0 || !document.body) return;
@@ -671,11 +760,13 @@
     restoreColors();
     inject();
     deEmoji(document.getElementById('app'));
+    setupDetail();
     var app = document.getElementById('app');
     if (app && typeof MutationObserver !== 'undefined') {
       new MutationObserver(function () {
         inject();
         deEmoji(app);
+        setupDetail();
       }).observe(app, { childList: true, subtree: true });
     }
   }
