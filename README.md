@@ -4,8 +4,8 @@ UOS / Deepin「桌面便签」（Electron）的精简本地版，**免安装压�
 
 | 项目 | 值 |
 |---|---|
-| 版本 | `1.1.0` |
-| 形式 | `sticky-note-1.1.0-linux-arm64.tar.gz`（105 MB，解压后约 248 MB） |
+| 版本 | `1.0.1` |
+| 形式 | `sticky-note-1.0.1-uos-arm64.tar.gz`（105 MB，解压后约 248 MB） |
 | 运行环境 | UOS / Deepin，arm64，系统需有 GTK3 等基础库 |
 
 ## 功能
@@ -28,7 +28,7 @@ UOS / Deepin「桌面便签」（Electron）的精简本地版，**免安装压�
 ## Windows 免安装版
 
 ```text
-sticky-note-1.1.0-windows-x64.zip
+sticky-note-1.0.1-windows-x64.zip
 ```
 
 解压后双击 `sticky-note.exe` 即可，无需安装。数据在 `%APPDATA%\todo-list`。
@@ -40,11 +40,25 @@ sticky-note-1.1.0-windows-x64.zip
 WIN_ARCH=x64 bash build-windows.sh     # 或 WIN_ARCH=arm64
 ```
 
+## 下载（V1.0.1）
+
+| 平台 | 文件 | SHA256 |
+|---|---|---|
+| UOS / Deepin arm64 | `sticky-note-1.0.1-uos-arm64.tar.gz` | `838c5bdcee9ce618d352d5bc2254d655e1fe8fd1688da77fa14749fce61e7d20` |
+| Windows x64 | `sticky-note-1.0.1-windows-x64.zip` | `1179bc9d205e5ff881d4ce9cf0087054d31100ca088ab3b6fc93131658e9ff1a` |
+
+校验：
+
+```bash
+sha256sum sticky-note-1.0.1-uos-arm64.tar.gz
+sha256sum sticky-note-1.0.1-windows-x64.zip
+```
+
 ## 使用
 
 ```bash
-tar xzf sticky-note-1.1.0-linux-arm64.tar.gz
-cd sticky-note-1.1.0-linux-arm64
+tar xzf sticky-note-1.0.1-uos-arm64.tar.gz
+cd sticky-note-1.0.1-uos-arm64
 ./sticky-note.sh          # 启动
 ```
 

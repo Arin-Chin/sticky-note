@@ -4,13 +4,13 @@
 #   bash build-windows.sh            # 默认 x64
 #   WIN_ARCH=arm64 bash build-windows.sh
 #
-# 产物: ./sticky-note-1.1.0-windows-<arch>.zip
+# 产物: ./sticky-note-1.0.1-windows-<arch>.zip
 # 依赖: curl, unzip, zip, rsvg-convert(若图标为 SVG)、本机原程序或 SN_APP_DIR
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="1.1.0"
+VERSION="1.0.1"
 APP_NAME="sticky note"
 ELECTRON_VER="13.6.9"
 WIN_ARCH="${WIN_ARCH:-x64}"
@@ -55,7 +55,7 @@ mv -f "$ROOT/electron.exe" "$ROOT/sticky-note.exe"
 cp -f "$PWD/sticky-note.svg" "$ROOT/sticky-note.svg" 2>/dev/null || true
 
 cat > "$ROOT/使用说明.txt" <<'TXT'
-sticky note 1.1.0（Windows 免安装版）
+sticky note 1.0.1（Windows 免安装版）
 =====================================
 
 启动：双击 sticky-note.exe
