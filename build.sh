@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 构建免安装的 sticky note 压缩包
 #
-#   bash build.sh [图标.svg]
+#   bash build.sh
 #
 # 产物: ./sticky-note-1.0.1-uos-arm64.tar.gz
 # 解压即用，不依赖系统里是否装过原程序。
@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-ICON_SVG="${1:-$PWD/sticky-note.svg}"
+ICON_SVG="$PWD/sticky-note.svg"   # 固定图标，禁止通过参数更改
 VERSION="1.0.1"
 APP_NAME="sticky note"
 SIZES="16 24 32 48 64 96 128 256 512"
@@ -137,7 +137,6 @@ cp -f "$WORK/app.asar" "$ROOT/resources/app.asar"
 rm -f "$ROOT/resources/app.asar.orig"
 # 应用菜单用的顶层图标（asar 内的 logo.png 只影响窗口/托盘）
 cp -f "$WORK/logo512.png" "$ROOT/logo.png"
-cp -f "$WORK/logo512.png" "$ROOT/logo-512.png"
 
 cat > "$ROOT/sticky-note.sh" <<'EOF'
 #!/bin/bash
@@ -174,12 +173,6 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache 
 echo "已加入应用菜单: sticky note（图标已装到 ~/.local/share/icons）"
 EOF
 chmod +x "$ROOT/install-desktop.sh"
-# 图标源文件一并放进压缩包，方便自行换图标重新构建
-cp -f "$ICON_SVG" "$ROOT/sticky-note.${ICON_SVG##*.}"
-# 字体源文件一并放入压缩包（含 OFL 许可）
-mkdir -p "$ROOT/fonts"
-cp -f "$PWD/fonts/LXGWWenKai-Regular.ttf" "$ROOT/fonts/"
-cp -f "$PWD/fonts/OFL.txt" "$ROOT/fonts/"
 
 cat > "$ROOT/README.txt" <<EOF
 $APP_NAME $VERSION 免安装版

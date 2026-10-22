@@ -51,24 +51,49 @@ rm -f "$ROOT/resources/default_app.asar"
 # 改名后任务管理器/托盘显示 sticky-note
 mv -f "$ROOT/electron.exe" "$ROOT/sticky-note.exe"
 
-# 附带图标源，方便自行替换重新构建
-cp -f "$PWD/sticky-note.svg" "$ROOT/sticky-note.svg" 2>/dev/null || true
+# 固定使用仓库中的 sticky-note.svg 生成 exe 图标并写入 PE 资源
+ICON_SVG="$PWD/sticky-note.svg"
+[ -f "$ICON_SVG" ] || die "找不到图标文件: $ICON_SVG"
+command -v rsvg-convert >/dev/null || die "需要 rsvg-convert 渲染图标"
+python3 -c "import PIL" 2>/dev/null || die "需要 python3 Pillow 生成 ico"
+mkdir -p "$WORK/ico"
+rsvg-convert -w 256 -h 256 "$ICON_SVG" -o "$WORK/ico/icon256.png"
+python3 - "$WORK/ico/icon256.png" "$WORK/icon.ico" <<'PYICO'
+import sys
+from PIL import Image
+img = Image.open(sys.argv[1]).convert('RGBA')
+img.save(sys.argv[2], format='ICO', sizes=[(16,16),(24,24),(32,32),(48,48),(64,64),(128,128),(256,256)])
+PYICO
+echo "      写入 Windows 可执行文件图标"
+mkdir -p "$WORK/petools"
+npm install --prefix "$WORK/petools" --silent resedit >/dev/null 2>&1 || die "npm 安装 resedit 失败"
+cat > "$WORK/seticon.cjs" <<'JSICO'
+const fs = require('fs');
+const ResEdit = require('resedit');
+const [exePath, icoPath] = process.argv.slice(2);
+const exe = ResEdit.NtExecutable.from(fs.readFileSync(exePath));
+const res = ResEdit.NtExecutableResource.from(exe);
+const ico = ResEdit.Data.IconFile.from(fs.readFileSync(icoPath));
+const icons = ico.icons.map((i) => i.data);
+const groups = ResEdit.Resource.IconGroupEntry.fromEntries(res.entries);
+if (groups.length) {
+  for (const g of groups) {
+    ResEdit.Resource.IconGroupEntry.replaceIconsForResource(res.entries, g.id, g.lang, icons);
+  }
+} else {
+  ResEdit.Resource.IconGroupEntry.replaceIconsForResource(res.entries, 32512, 1033, icons);
+}
+res.outputResource(exe);
+fs.writeFileSync(exePath, Buffer.from(exe.generate()));
+JSICO
+NODE_PATH="$WORK/petools/node_modules" node "$WORK/seticon.cjs" "$ROOT/sticky-note.exe" "$WORK/icon.ico" || die "写入 exe 图标失败"
 
 cat > "$ROOT/使用说明.txt" <<'TXT'
 sticky note 1.0.1（Windows 免安装版）
-=====================================
 
 启动：双击 sticky-note.exe
-
-说明：
-- 无需安装，解压到任意目录即可使用；删除目录即可卸载。
-- 数据保存在 %APPDATA%\todo-list（data.json / settings.json）。
-- 托盘：单击图标显示窗口；右键菜单可显示/隐藏或退出。
-- 设置齿轮：开机自启、导出 Excel、使用指南、便签纸/文字/界面配色。
-- 字体霞鹜文楷已随包附带，无需在系统安装。
-
-如 Windows SmartScreen 提示未知发布者，属于未签名自编译程序的正常提示，
-选择“更多信息 → 仍要运行”即可。
+数据：%APPDATA%\todo-list
+无需安装，删除目录即可卸载。
 TXT
 
 echo "[4/4] 打包 zip"
