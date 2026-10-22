@@ -182,6 +182,9 @@
     '#app .sn-detail-modal .detail-item.current p{outline:none;cursor:text;white-space:pre-wrap;',
     'word-break:break-word;min-height:2em}',
     '#app .sn-detail-modal .detail-item.current p:focus{box-shadow:inset 0 0 0 1px currentColor}',
+    // 新建/编辑待办时不再显示 Enter/Shift+Enter/Esc 提示
+    '#app .edit-wrapper .edit-shortcuts .shortcuts-left{display:none!important}',
+
     // 主列表只显示待办标题：单行省略，不再展开多行内容
     '#app .root .display{align-items:center!important}',
     '#app .root .display p,#app .root .display p.multiline-text,#app .root .item.multiline .display p{',
