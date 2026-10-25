@@ -614,16 +614,20 @@
     var pin = document.createElement('i');
     pin.className = 'iconfont sn-btn sn-pin';
     pin.title = '置顶（始终在最前）';
+    var isPinned = false;
+    function setPinned(on) {
+      isPinned = !!on;
+      pin.classList.toggle('sn-active', isPinned);
+      pin.title = isPinned ? '取消置顶' : '置顶（始终在最前）';
+    }
     pin.onclick = function () {
-      ipc.invoke('toggleAlwaysOnTop').then(function (on) {
-        pin.classList.toggle('sn-active', !!on);
-        pin.title = on ? '取消置顶' : '置顶（始终在最前）';
+      // 先同步翻转图标，点击立即有视觉反馈；再以主进程返回值为准纠正
+      setPinned(!isPinned);
+      ipc.invoke('toggleAlwaysOnTop').then(setPinned).catch(function () {
+        setPinned(!isPinned);
       });
     };
-    ipc.invoke('getAlwaysOnTop').then(function (on) {
-      pin.classList.toggle('sn-active', !!on);
-      if (on) pin.title = '取消置顶';
-    });
+    ipc.invoke('getAlwaysOnTop').then(setPinned);
 
     var gear = document.createElement('i');
     gear.className = 'iconfont sn-btn sn-gear';

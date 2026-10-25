@@ -28,8 +28,11 @@ command -v zip >/dev/null || die "缺少 zip"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-echo "[1/4] 生成补丁后的 app.asar"
-bash ./patch-asar.sh "$WORK/app.asar"
+echo "[1/4] 生成补丁后的 app.asar（含托盘图标替换）"
+command -v rsvg-convert >/dev/null || die "需要 rsvg-convert 渲染图标"
+TRAY_PNG="$WORK/tray.png"
+rsvg-convert -w 32 -h 32 "$PWD/sticky-note.svg" -o "$TRAY_PNG"
+SN_EXTRA_TRAY="$TRAY_PNG" bash ./patch-asar.sh "$WORK/app.asar"
 
 echo "[2/4] 准备 Windows Electron ${ELECTRON_VER} (${WIN_ARCH})"
 mkdir -p "$CACHE"

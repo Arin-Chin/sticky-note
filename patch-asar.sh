@@ -251,6 +251,13 @@ if (process.env.SN_EXTRA_FONT) {
   console.log('  未提供 SN_EXTRA_FONT，跳过字体注入');
 }
 
+// 6.11 替换托盘图标（Windows 任务栏通知区默认还是 Electron 原子图标）
+if (process.env.SN_EXTRA_TRAY) {
+  const trayPng = fs.readFileSync(process.env.SN_EXTRA_TRAY);
+  if (byPath['/tray.png']) { byPath['/tray.png'].data = trayPng; console.log('  替换 /tray.png (' + trayPng.length + ' 字节)'); }
+  else { addFile('/tray.png', trayPng); }
+}
+
 // 6.5 sourcemap / 残留字符串
 repAll('donate', '');
 repAll('Donate', '');
