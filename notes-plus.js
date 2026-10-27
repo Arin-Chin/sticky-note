@@ -2,7 +2,7 @@
  * sticky note 界面扩展（渲染层注入脚本，不改动编译后的 Vue 代码）
  *
  * 1. 右上角工具条：隐藏到托盘 → 锁定 → 置顶 → 设置（齿轮）
- * 2. 齿轮菜单：便签纸颜色(RGBA)、便签文字颜色(RGBA)，各 9 个预选色；
+ * 2. 齿轮菜单：便签纸颜色(RGBA)、便签文字颜色(RGBA)，各 7 个预选色；
  *    软件提示文字与图标颜色由便签纸颜色自动推导；导出到 Excel、使用指南移入菜单
  * 3. 图标统一为 Apple 风格极简线性 SVG（细描边、圆端头、单色 currentColor）
  *
@@ -20,8 +20,15 @@
   var ipc = electron.ipcRenderer;
   if (!ipc) return;
 
-  var KEY_PAPER = 'sn.paper';   // 便签纸底色
-  var KEY_FONT = 'sn.font';     // 便签文字颜色
+  var KEY_PAPER = 'sn.paper';
+  var KEY_FONT = 'sn.font';
+  var LEGACY_UI_KEY = 'sn.ui';
+  var DEFAULT_PAPER_HEX = '#2d2d2d';
+  var DEFAULT_FONT_HEX = '#ffffff';
+  var DEFAULT_PAPER_RGB = { r: 45, g: 45, b: 45 };
+  var LIGHT_PAPER_LUMA = 150;
+  var PANEL_TEXT_MIN_CONTRAST = 4.5;
+  var HISTORY_LIMIT = 10;
 
   var PAPER_PRESETS = [
     { name: '默认深灰', color: '#2d2d2d' },
@@ -46,13 +53,11 @@
   var ICONS = {
     gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
     pin: '<path d="M12 17v5"/><path d="M9 10.8V5.2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5.6l1.9 2.4a1 1 0 0 1 .1 1.2 1 1 0 0 1-.9.6H7.9a1 1 0 0 1-.9-.6 1 1 0 0 1 .1-1.2z"/>',
-    pinOff: '<path d="M12 17v5"/><path d="M9 10.8V5.2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/><path d="M4 4l16 16"/>',
     eyeOff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>',
     lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     unlock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
     x: '<path d="M18 6L6 18M6 6l12 12"/>',
     check: '<path d="M20 6L9 17l-5-5"/>',
-    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/>',
     download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/>',
     book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v18H5.5A1.5 1.5 0 0 1 4 19.5z"/><path d="M4 17.5A1.5 1.5 0 0 1 5.5 16H19"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 16l-4.5-4.5L7 21"/>',
@@ -80,7 +85,8 @@
   };
 
   function svg(name, size) {
-    return '<svg viewBox="0 0 24 24" width="' + (size || 17) + '" height="' + (size || 17) +
+    var pixelSize = size || 17;
+    return '<svg viewBox="0 0 24 24" width="' + pixelSize + '" height="' + pixelSize +
       '" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" ' +
       'stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
   }
@@ -340,14 +346,11 @@
     return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + alpha + ')';
   }
 
-  // ponytail: 以默认深色底 (#2d2d2d) 估算便签纸明暗，足够决定用深字还是浅字
+  // 半透明纸色先叠到默认深色底上，再判断明暗
   function isLightPaper(hex, alpha) {
-    var c = parseHex(hex);
-    var bg = { r: 45, g: 45, b: 45 };
-    var r = c.r * alpha + bg.r * (1 - alpha);
-    var g = c.g * alpha + bg.g * (1 - alpha);
-    var b = c.b * alpha + bg.b * (1 - alpha);
-    return (0.299 * r + 0.587 * g + 0.114 * b) > 150;
+    var paper = composite(parseHex(hex), alpha, DEFAULT_PAPER_RGB);
+    var luma = 0.299 * paper.r + 0.587 * paper.g + 0.114 * paper.b;
+    return luma > LIGHT_PAPER_LUMA;
   }
 
   // 软件提示文字/图标颜色由便签纸颜色自动决定：浅纸用深字，深纸用浅字
@@ -388,43 +391,39 @@
     return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
   }
 
-  function rgbCss(c) { return 'rgb(' + Math.round(c.r) + ',' + Math.round(c.g) + ',' + Math.round(c.b) + ')'; }
-
   // 设置卡片背景=便签纸色、文字/图标=便签文字色；
   // 对比度不足(如白字+白纸)时退回黑/白中更清楚的一种，保证可视性。
-  function syncPanelContrast(paper) {
+  function syncPanelColors(paper) {
     var root = document.documentElement;
     root.style.setProperty('--sn-ui', uiColorFor(paper));
-    var bg = composite(parseHex(paper.hex), paper.alpha, { r: 45, g: 45, b: 45 });
-    var font = loadColor(KEY_FONT, '#ffffff');
+    var bg = composite(parseHex(paper.hex), paper.alpha, DEFAULT_PAPER_RGB);
+    var font = loadColor(KEY_FONT, DEFAULT_FONT_HEX);
     var fg = composite(parseHex(font.hex), font.alpha, bg);
     var fgCss;
-    if (contrast(fg, bg) >= 4.5) {
+    if (contrast(fg, bg) >= PANEL_TEXT_MIN_CONTRAST) {
       fgCss = hexToRgba(font.hex, font.alpha);
     } else {
-      var dark = { r: 26, g: 26, b: 26 }, light = { r: 255, g: 255, b: 255 };
-      fgCss = contrast(light, bg) >= contrast(dark, bg) ? '#ffffff' : '#1a1a1a';
+      var darkText = { r: 26, g: 26, b: 26 };
+      var lightText = { r: 255, g: 255, b: 255 };
+      fgCss = contrast(lightText, bg) >= contrast(darkText, bg) ? '#ffffff' : '#1a1a1a';
     }
     root.style.setProperty('--sn-surface', hexToRgba(paper.hex, paper.alpha));
     root.style.setProperty('--sn-surface-fg', fgCss);
-    // 次级文字：略降透明度，但对比度不够时保持实色
-    var dim = fgCss.indexOf('rgba') === 0 ? fgCss.replace(/,1\)$/, ',.72)') : fgCss;
-    root.style.setProperty('--sn-surface-dim', dim);
   }
 
   function applyPaper(c) {
     document.documentElement.style.setProperty('--sn-paper', hexToRgba(c.hex, c.alpha));
-    syncPanelContrast(c);
+    syncPanelColors(c);
     document.body.classList.add('sn-paper-custom');
   }
   function applyFont(c) {
     document.documentElement.style.setProperty('--sn-font', hexToRgba(c.hex, c.alpha));
     document.body.classList.add('sn-font-custom');
-    syncPanelContrast(loadColor(KEY_PAPER, '#2d2d2d'));
+    syncPanelColors(loadColor(KEY_PAPER, DEFAULT_PAPER_HEX));
   }
   function resetPaper() {
     document.documentElement.style.removeProperty('--sn-paper');
-    syncPanelContrast({ hex: '#2d2d2d', alpha: 1 });
+    syncPanelColors({ hex: DEFAULT_PAPER_HEX, alpha: 1 });
     document.body.classList.remove('sn-paper-custom');
     try { localStorage.removeItem(KEY_PAPER); } catch (e) { /* 忽略 */ }
   }
@@ -432,7 +431,7 @@
     document.documentElement.style.removeProperty('--sn-font');
     document.body.classList.remove('sn-font-custom');
     try { localStorage.removeItem(KEY_FONT); } catch (e) { /* 忽略 */ }
-    syncPanelContrast(loadColor(KEY_PAPER, '#2d2d2d'));
+    syncPanelColors(loadColor(KEY_PAPER, DEFAULT_PAPER_HEX));
   }
 
   // ---------------------------------------------------------------- 齿轮面板
@@ -440,8 +439,7 @@
 
   // 新建/编辑待办的预设色与设置里的「便签文字颜色」预设保持一致
   function syncTodoPresets() {
-    var root = document.querySelector('#app .root');
-    var vm = root && root.__vue__;
+    var vm = findTodoVm();
     if (!vm || !Array.isArray(vm.colorOptions)) return;
     var items = loadPresets('sn.font.presets', FONT_PRESETS);
     var opts = items.map(function (p) {
@@ -452,16 +450,19 @@
     vm.__snPresetSig = sig;
     vm.$set(vm, 'colorOptions', opts);
   }
-  window.__snSyncTodoPresets = syncTodoPresets;
+
+  function cloneDefaultPresets(presets) {
+    return presets.map(function (p) {
+      return { name: p.name, color: p.color, alpha: 1 };
+    });
+  }
 
   function loadPresets(key, fallback) {
     try {
       var raw = localStorage.getItem(key);
-      if (!raw) return fallback.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+      if (!raw) return cloneDefaultPresets(fallback);
       var arr = JSON.parse(raw);
-      if (!Array.isArray(arr) || arr.length !== fallback.length) {
-        return fallback.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
-      }
+      if (!Array.isArray(arr) || arr.length !== fallback.length) return cloneDefaultPresets(fallback);
       return fallback.map(function (p, i) {
         var v = arr[i] || {};
         return {
@@ -471,7 +472,7 @@
         };
       });
     } catch (e) {
-      return fallback.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+      return cloneDefaultPresets(fallback);
     }
   }
 
@@ -495,7 +496,7 @@
     label.textContent = title;
     wrap.appendChild(label);
 
-    var defaults = presets.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+    var defaults = cloneDefaultPresets(presets);
     var items = loadPresets(presetKey, presets);
     var selected = -1;
 
@@ -569,7 +570,7 @@
         items[selected].alpha = state.alpha;
         updateSelectedSwatch();
         savePresets(presetKey, items);
-        if (presetKey === 'sn.font.presets' && window.__snSyncTodoPresets) window.__snSyncTodoPresets();
+        if (presetKey === 'sn.font.presets') syncTodoPresets();
       }
     }
 
@@ -613,10 +614,10 @@
     reset.textContent = '恢复默认';
     reset.onclick = function () {
       onReset();
-      items = defaults.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+      items = cloneDefaultPresets(defaults);
       selected = -1;
       clearPresets(presetKey);
-      if (presetKey === 'sn.font.presets' && window.__snSyncTodoPresets) window.__snSyncTodoPresets();
+      if (presetKey === 'sn.font.presets') syncTodoPresets();
       state.hex = defaultHex;
       state.alpha = 1;
       colorInput.value = defaultHex;
@@ -636,19 +637,19 @@
     panel = document.createElement('div');
     panel.className = 'sn-panel sn-hidden';
 
-    var paperState = loadColor(KEY_PAPER, '#2d2d2d');
-    var fontState = loadColor(KEY_FONT, '#ffffff');
+    var paperState = loadColor(KEY_PAPER, DEFAULT_PAPER_HEX);
+    var fontState = loadColor(KEY_FONT, DEFAULT_FONT_HEX);
 
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
       applyPaper(paperState);
-    }, resetPaper, '#2d2d2d', '应用', 'sn.paper.presets');
+    }, resetPaper, DEFAULT_PAPER_HEX, '应用', 'sn.paper.presets');
     panel.appendChild(paperSec.node);
 
     var fontSec = buildSection('便签文字颜色', FONT_PRESETS, fontState, function () {
       saveColor(KEY_FONT, fontState.hex, fontState.alpha);
       applyFont(fontState);
-    }, resetFont, '#ffffff', '应用', 'sn.font.presets');
+    }, resetFont, DEFAULT_FONT_HEX, '应用', 'sn.font.presets');
     panel.appendChild(fontSec.node);
 
     var split = document.createElement('div');
@@ -689,7 +690,7 @@
     panel.appendChild(menu);
 
     document.body.appendChild(panel);
-    syncPanelContrast(paperState);
+    syncPanelColors(paperState);
   }
 
   function panelOpen() { return panel && !panel.classList.contains('sn-hidden'); }
@@ -739,18 +740,20 @@
 
     if (!panel) buildPanel();
     hidePanel();
-
-    if (localStorage.getItem(KEY_PAPER)) applyPaper(loadColor(KEY_PAPER, '#2d2d2d'));
-    if (localStorage.getItem(KEY_FONT)) applyFont(loadColor(KEY_FONT, '#ffffff'));
+    applySavedColors();
   }
 
-  // 启动时套用已保存的颜色：提示文字/图标颜色由便签纸颜色自动推导
-  function restoreColors() {
-    try { localStorage.removeItem('sn.ui'); } catch (e) { /* 清理旧版设置 */ }
-    var paper = loadColor(KEY_PAPER, '#2d2d2d');
-    syncPanelContrast(paper);
+  function applySavedColors() {
+    var paper = loadColor(KEY_PAPER, DEFAULT_PAPER_HEX);
     if (localStorage.getItem(KEY_PAPER)) applyPaper(paper);
-    if (localStorage.getItem(KEY_FONT)) applyFont(loadColor(KEY_FONT, '#ffffff'));
+    if (localStorage.getItem(KEY_FONT)) applyFont(loadColor(KEY_FONT, DEFAULT_FONT_HEX));
+  }
+
+  // 提示文字/图标颜色始终由便签纸颜色推导
+  function restoreColors() {
+    try { localStorage.removeItem(LEGACY_UI_KEY); } catch (e) { /* 旧版设置 */ }
+    syncPanelColors(loadColor(KEY_PAPER, DEFAULT_PAPER_HEX));
+    applySavedColors();
   }
 
   var style = document.createElement('style');
@@ -809,134 +812,202 @@
   }
 
   // ---------------------------------------------------------------- 待办详情
-  function noteTitle(record) {
-    var raw = (record && (record.newContent || record.oldContent)) || '';
-    var first = String(raw).split('\n')[0].trim();
-    if (!first) first = record && record.newColor ? '(颜色调整)' : '(无标题)';
-    return first.length > 60 ? first.slice(0, 60) + '…' : first;
+  function findTodoVm() {
+    var root = document.querySelector('#app .root');
+    return root ? root.__vue__ : null;
   }
 
-  // 笔记单独保存到 note 字段：不写 content、不产生标题修改历史
-  function saveNoteText(el, text) {
-    var root = document.querySelector('#app .root');
-    var vm = root && root.__vue__;
+  function pad2(value) {
+    return String(value).padStart(2, '0');
+  }
+
+  function formatTimestamp(date) {
+    var day = date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate());
+    var time = pad2(date.getHours()) + ':' + pad2(date.getMinutes()) + ':' + pad2(date.getSeconds());
+    return day + ' ' + time;
+  }
+
+  function truncateText(text, maxLength) {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '…';
+  }
+
+  function historyTitle(record) {
+    var text = (record && (record.newContent || record.oldContent)) || '';
+    var firstLine = String(text).split('\n')[0].trim();
+    if (!firstLine) {
+      firstLine = record && record.newColor ? '(颜色调整)' : '(无标题)';
+    }
+    return truncateText(firstLine, 60);
+  }
+
+  function buildNoteHistoryRecord(item, oldNote, newNote, timestamp) {
+    return {
+      datetime: timestamp,
+      oldContent: item.content || '',
+      newContent: item.content || '',
+      oldColor: item.color || '#ffffff',
+      newColor: item.color || '#ffffff',
+      oldNote: oldNote,
+      newNote: newNote
+    };
+  }
+
+  function updateVmNote(vm, index, item) {
+    vm.$set(vm.todoList[index], 'note', item.note);
+    vm.$set(vm.todoList[index], 'history', item.history);
+    vm.$set(vm.todoList[index], 'modified_datetime', item.modified_datetime);
+    if (!vm.detailItem) return;
+    vm.$set(vm.detailItem, 'note', item.note);
+    vm.$set(vm.detailItem, 'history', item.history);
+  }
+
+  // 笔记单独保存到 note 字段：不写标题，只追加一条笔记历史
+  function saveNoteText(text) {
+    var vm = findTodoVm();
     if (!vm) return Promise.reject(new Error('no vm'));
-    var idx = vm.detailIndex;
-    if (idx == null || idx < 0) return Promise.reject(new Error('no index'));
+    var index = vm.detailIndex;
+    if (index == null || index < 0) return Promise.reject(new Error('no index'));
+
     return ipc.invoke('getDataPath').then(function (dir) {
       var fs = require('fs');
       var path = require('path');
-      var file = path.join(dir, 'data.json');
-      var data = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (!data.todoList || !data.todoList[idx]) throw new Error('no item');
-      var item = data.todoList[idx];
+      var dataFile = path.join(dir, 'data.json');
+      var data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+      var item = data.todoList && data.todoList[index];
+      if (!item) throw new Error('no item');
+
       var oldNote = item.note || '';
       if (text === oldNote) return;
-      var stamp = (function () {
-        var d = new Date(), p = function (n) { return String(n).length < 2 ? '0' + n : String(n); };
-        return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' +
-          p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
-      })();
-      // 只改笔记也要留历史：标题/颜色取当前值，笔记记 old/new
+
+      var timestamp = formatTimestamp(new Date());
       item.history = item.history || [];
-      item.history.push({
-        datetime: stamp,
-        oldContent: item.content || '',
-        newContent: item.content || '',
-        oldColor: item.color || '#ffffff',
-        newColor: item.color || '#ffffff',
-        oldNote: oldNote,
-        newNote: text
-      });
-      if (item.history.length > 10) item.history = item.history.slice(-10);
-      item.note = text;
-      item.modified_datetime = stamp;
-      fs.writeFileSync(file, JSON.stringify(data, null, 2));
-      vm.$set(vm.todoList[idx], 'note', text);
-      vm.$set(vm.todoList[idx], 'history', item.history);
-      vm.$set(vm.todoList[idx], 'modified_datetime', stamp);
-      if (vm.detailItem) {
-        vm.$set(vm.detailItem, 'note', text);
-        vm.$set(vm.detailItem, 'history', item.history);
+      item.history.push(buildNoteHistoryRecord(item, oldNote, text, timestamp));
+      if (item.history.length > HISTORY_LIMIT) {
+        item.history = item.history.slice(-HISTORY_LIMIT);
       }
+      item.note = text;
+      item.modified_datetime = timestamp;
+
+      fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+      updateVmNote(vm, index, item);
+    });
+  }
+
+  function historyRecords(vm) {
+    if (!vm || !vm.detailItem || !Array.isArray(vm.detailItem.history)) return [];
+    return vm.detailItem.history.slice().reverse();
+  }
+
+  function historyLabels(record, historyItem, currentNote) {
+    var title;
+    var note;
+    if (record) {
+      title = historyTitle(record);
+      note = record.newNote || record.oldNote || '';
+    } else {
+      var newContent = historyItem.querySelector('.history-changes .change .new');
+      var oldContent = historyItem.querySelector('.history-changes .change .old');
+      var fallbackContent = newContent ? newContent.textContent : (oldContent ? oldContent.textContent : '');
+      title = historyTitle({ newContent: fallbackContent });
+      note = '';
+    }
+
+    if (!note) note = currentNote || '';
+    note = String(note).replace(/\s+/g, ' ').trim();
+    note = note ? truncateText(note, 80) : '(无)';
+    return {
+      title: '【标题】：' + title,
+      note: '【笔记】：' + note
+    };
+  }
+
+  function ensureHistoryLine(historyItem, className, anchor) {
+    var line = historyItem.querySelector('.' + className);
+    if (line) return line;
+
+    line = document.createElement('div');
+    line.className = className;
+    if (anchor && anchor.nextSibling) {
+      historyItem.insertBefore(line, anchor.nextSibling);
+    } else {
+      historyItem.appendChild(line);
+    }
+    return line;
+  }
+
+  function setTextIfChanged(element, text) {
+    if (element.textContent === text) return;
+    element.textContent = text;
+    element.title = text;
+  }
+
+  function renderHistoryItems(vm) {
+    var records = historyRecords(vm);
+    var items = document.querySelectorAll('#app .sn-detail-modal .history-item');
+    var currentNote = vm && vm.detailItem ? vm.detailItem.note : '';
+
+    Array.prototype.forEach.call(items, function (historyItem, index) {
+      var labels = historyLabels(records[index], historyItem, currentNote);
+      var time = historyItem.querySelector('.history-time');
+      var titleLine = ensureHistoryLine(historyItem, 'sn-history-title', time);
+      var noteLine = ensureHistoryLine(historyItem, 'sn-history-note', titleLine);
+      setTextIfChanged(titleLine, labels.title);
+      setTextIfChanged(noteLine, labels.note);
+    });
+  }
+
+  function makeNoteEditable(note, initialText) {
+    note.dataset.snEditable = '1';
+    note.setAttribute('contenteditable', 'true');
+    note.setAttribute('spellcheck', 'false');
+
+    var textBeforeEdit = initialText;
+    note.addEventListener('focus', function () {
+      textBeforeEdit = note.textContent;
+    });
+    note.addEventListener('paste', function (event) {
+      event.preventDefault();
+      var text = (event.clipboardData || window.clipboardData).getData('text');
+      if (text) document.execCommand('insertText', false, text);
+    });
+    note.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        note.textContent = textBeforeEdit;
+        note.blur();
+        return;
+      }
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        note.blur();
+      }
+    });
+    note.addEventListener('blur', function () {
+      var text = note.textContent.replace(/\s+$/, '');
+      if (text === textBeforeEdit) return;
+      saveNoteText(text).catch(function () {
+        note.textContent = textBeforeEdit;
+      });
     });
   }
 
   function setupDetail() {
     var note = document.querySelector('#app .modal .detail-item.current p');
     if (!note) return;
+
     var modal = note.closest('.modal');
     if (modal) modal.classList.add('sn-detail-modal');
 
-    // 历史条目：只显示时间 + 待办标题（内容随记录更新，不保留旧标题）
-    var rootVm = document.querySelector('#app .root');
-    var vm = rootVm && rootVm.__vue__;
-    var records = (vm && vm.detailItem && vm.detailItem.history) ? vm.detailItem.history.slice().reverse() : [];
-    Array.prototype.forEach.call(document.querySelectorAll('#app .sn-detail-modal .history-item'), function (item, i) {
-      var rec = records[i];
-      var title, note;
-      if (rec) {
-        title = noteTitle(rec);
-        note = rec.newNote || rec.oldNote || '';
-      } else {
-        var newEl = item.querySelector('.history-changes .change .new');
-        var oldEl = item.querySelector('.history-changes .change .old');
-        title = noteTitle({ newContent: newEl ? newEl.textContent : (oldEl ? oldEl.textContent : '') });
-        note = '';
-      }
-      if (!note && vm && vm.detailItem && vm.detailItem.note) note = vm.detailItem.note;
-      note = String(note).replace(/\s+/g, ' ').trim();
-      if (note.length > 80) note = note.slice(0, 80) + '…';
-      if (!note) note = '(无)';
+    var vm = findTodoVm();
+    renderHistoryItems(vm);
 
-      var time = item.querySelector('.history-time');
-      var titleEl = item.querySelector('.sn-history-title');
-      var noteEl = item.querySelector('.sn-history-note');
-      if (!titleEl) {
-        titleEl = document.createElement('div');
-        titleEl.className = 'sn-history-title';
-        if (time && time.nextSibling) item.insertBefore(titleEl, time.nextSibling);
-        else item.appendChild(titleEl);
-      }
-      if (!noteEl) {
-        noteEl = document.createElement('div');
-        noteEl.className = 'sn-history-note';
-        if (titleEl.nextSibling) item.insertBefore(noteEl, titleEl.nextSibling);
-        else item.appendChild(noteEl);
-      }
-      var titleText = '【标题】：' + title;
-      var noteText = '【笔记】：' + note;
-      if (titleEl.textContent !== titleText) { titleEl.textContent = titleText; titleEl.title = titleText; }
-      if (noteEl.textContent !== noteText) { noteEl.textContent = noteText; noteEl.title = noteText; }
-    });
-
-    // 笔记来自独立 note 字段，主列表 content 只作为标题
-    var item = vm && vm.detailItem;
-    var currentNote = (item && item.note) || '';
+    var currentNote = (vm && vm.detailItem && vm.detailItem.note) || '';
     if (!note.dataset.snEditable && note.textContent !== currentNote) {
       note.textContent = currentNote;
     }
     if (note.dataset.snEditable) return;
-    note.dataset.snEditable = '1';
-    note.setAttribute('contenteditable', 'true');
-    note.setAttribute('spellcheck', 'false');
-    var before = note.textContent;
 
-    note.addEventListener('focus', function () { before = note.textContent; });
-    note.addEventListener('paste', function (e) {
-      e.preventDefault();
-      var text = (e.clipboardData || window.clipboardData).getData('text');
-      if (text) document.execCommand('insertText', false, text);
-    });
-    note.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') { note.textContent = before; note.blur(); }
-      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); note.blur(); }
-    });
-    note.addEventListener('blur', function () {
-      var text = note.textContent.replace(/\s+$/, '');
-      if (text === before) return;
-      saveNoteText(note, text).catch(function () { note.textContent = before; });
-    });
+    makeNoteEditable(note, currentNote);
   }
 
   // 使用指南窗口：整窗方角、无阴影，避免方角卡片四角透出黑边
