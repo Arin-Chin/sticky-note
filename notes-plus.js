@@ -438,6 +438,22 @@
   // ---------------------------------------------------------------- 齿轮面板
   var panel = null;
 
+  // 新建/编辑待办的预设色与设置里的「便签文字颜色」预设保持一致
+  function syncTodoPresets() {
+    var root = document.querySelector('#app .root');
+    var vm = root && root.__vue__;
+    if (!vm || !Array.isArray(vm.colorOptions)) return;
+    var items = loadPresets('sn.font.presets', FONT_PRESETS);
+    var opts = items.map(function (p) {
+      return { name: p.name, value: hexToRgba(p.color, p.alpha) };
+    });
+    var sig = JSON.stringify(opts);
+    if (vm.__snPresetSig === sig) return;
+    vm.__snPresetSig = sig;
+    vm.$set(vm, 'colorOptions', opts);
+  }
+  window.__snSyncTodoPresets = syncTodoPresets;
+
   function loadPresets(key, fallback) {
     try {
       var raw = localStorage.getItem(key);
@@ -553,6 +569,7 @@
         items[selected].alpha = state.alpha;
         updateSelectedSwatch();
         savePresets(presetKey, items);
+        if (presetKey === 'sn.font.presets' && window.__snSyncTodoPresets) window.__snSyncTodoPresets();
       }
     }
 
@@ -599,6 +616,7 @@
       items = defaults.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
       selected = -1;
       clearPresets(presetKey);
+      if (presetKey === 'sn.font.presets' && window.__snSyncTodoPresets) window.__snSyncTodoPresets();
       state.hex = defaultHex;
       state.alpha = 1;
       colorInput.value = defaultHex;
@@ -937,12 +955,14 @@
     inject();
     deEmoji(document.getElementById('app'));
     setupDetail();
+    syncTodoPresets();
     var app = document.getElementById('app');
     if (app && typeof MutationObserver !== 'undefined') {
       new MutationObserver(function () {
         inject();
         deEmoji(app);
         setupDetail();
+        syncTodoPresets();
       }).observe(app, { childList: true, subtree: true });
     }
   }
