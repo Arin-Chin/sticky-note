@@ -3,7 +3,7 @@
 #
 #   bash build.sh
 #
-# 产物: ./sticky-note-1.0.2-uos-arm64.tar.gz
+# 产物: ./sticky-note-1.0.3-uos-arm64.tar.gz
 # 解压即用，不依赖系统里是否装过原程序。
 #
 # 需要: rsvg-convert（仅当图标是 SVG 时，apt install librsvg2-bin）、本机已安装的原程序（或 SN_APP_DIR 指定）
@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 ICON_SVG="$PWD/sticky-note.svg"   # 固定图标，禁止通过参数更改
-VERSION="1.0.2"
+VERSION="1.0.3"
 APP_NAME="sticky note"
 SIZES="16 24 32 48 64 96 128 256 512"
 ARCH="$(dpkg --print-architecture)"

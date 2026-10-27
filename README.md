@@ -2,9 +2,9 @@
 
 本地便签，免安装，解压即用。
 
-- UOS / Deepin arm64：`sticky-note-1.0.2-uos-arm64.tar.gz`
-- Windows x64：`sticky-note-1.0.2-windows-x64.zip`
-- 版本：`1.0.2`
+- UOS / Deepin arm64：`sticky-note-1.0.3-uos-arm64.tar.gz`
+- Windows x64：`sticky-note-1.0.3-windows-x64.zip`
+- 版本：`1.0.3`
 
 ## 功能
 
@@ -19,8 +19,8 @@
 **UOS / Deepin**
 
 ```bash
-tar xzf sticky-note-1.0.2-uos-arm64.tar.gz
-cd sticky-note-1.0.2-uos-arm64
+tar xzf sticky-note-1.0.3-uos-arm64.tar.gz
+cd sticky-note-1.0.3-uos-arm64
 ./sticky-note.sh
 ```
 

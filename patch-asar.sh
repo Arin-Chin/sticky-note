@@ -8,7 +8,7 @@
 #   - 删除打赏/捐赠功能（路由、窗口、支付接口、页面文件）
 #   - 删除全部 sourcemap
 #   - 清除作者与推广信息
-#   - 应用名改 sticky note，版本号 1.0.2，隐藏标题栏多余文字
+#   - 应用名改 sticky note，版本号 1.0.3，隐藏标题栏多余文字
 # 自检不通过会直接报错退出，不会写出半成品；替换逻辑幂等，可重复执行。
 
 set -euo pipefail
@@ -137,10 +137,10 @@ rep(appJs,            '"productName":"桌面便签"', '"productName":"sticky not
 rep(appJs,            '"description":"桌面便签 - ', '"description":"sticky note - ', 1);
 rep('/background.js', '"productName":"桌面便签"', '"productName":"sticky note"', 1);
 rep('/background.js', 'title:"桌面便签', 'title:"sticky note', null);
-// 版本号 V1.0.2
-rep('/package.json',  '"version": "0.2.3"', '"version": "1.0.2"', 1);
-rep(appJs,            '"version":"0.2.3"', '"version":"1.0.2"', 1);
-rep('/background.js', '"version":"0.2.3"', '"version":"1.0.2"', 1);
+// 版本号 V1.0.3
+rep('/package.json',  '"version": "0.2.3"', '"version": "1.0.3"', 1);
+rep(appJs,            '"version":"0.2.3"', '"version":"1.0.3"', 1);
+rep('/background.js', '"version":"0.2.3"', '"version":"1.0.3"', 1);
 
 // 2) 隐藏标题栏杂项文字（左上角应用名、右上角标语）
 const cssOld = get(appCss);

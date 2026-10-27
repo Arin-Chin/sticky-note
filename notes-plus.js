@@ -27,12 +27,10 @@
     { name: '默认深灰', color: '#2d2d2d' },
     { name: '纯黑', color: '#1a1a1a' },
     { name: '纯白', color: '#ffffff' },
-    { name: '米黄', color: '#fdf6e3' },
     { name: '鹅黄', color: '#fff9c4' },
     { name: '淡绿', color: '#c8e6c9' },
     { name: '淡蓝', color: '#bbdefb' },
-    { name: '淡粉', color: '#f8bbd0' },
-    { name: '淡紫', color: '#d1c4e9' }
+    { name: '淡粉', color: '#f8bbd0' }
   ];
   var FONT_PRESETS = [
     { name: '白色', color: '#ffffff' },
@@ -41,9 +39,7 @@
     { name: '橙色', color: '#ff9f43' },
     { name: '黄色', color: '#feca57' },
     { name: '绿色', color: '#1dd1a1' },
-    { name: '蓝色', color: '#54a0ff' },
-    { name: '紫色', color: '#a29bfe' },
-    { name: '品红', color: '#e056fd' }
+    { name: '蓝色', color: '#54a0ff' }
   ];
   // ------------------------------------------------------------ Apple 风线性图标
   // 24x24 viewBox，stroke 由 CSS 统一给（currentColor / 1.6 / round）
@@ -185,6 +181,9 @@
     // 新建/编辑待办时不再显示 Enter/Shift+Enter/Esc 提示
     '#app .edit-wrapper .edit-shortcuts .shortcuts-left{display:none!important}',
 
+    // 已完成列表的文字颜色跟随便签文字颜色
+    '#app .root .list .item>p{color:var(--sn-font,#fff)!important}',
+
     // 主列表只显示待办标题：单行省略，不再展开多行内容
     '#app .root .display{align-items:center!important}',
     '#app .root .display p,#app .root .display p.multiline-text,#app .root .item.multiline .display p{',
@@ -278,7 +277,7 @@
     '.sn-sec{margin-bottom:12px}',
     '.sn-sec:last-child{margin-bottom:0}',
     '.sn-sec>label{display:block;color:var(--sn-surface-fg,#fff);font-size:11px;margin-bottom:6px}',
-    '.sn-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}',
+    '.sn-swatches{display:flex;flex-wrap:nowrap;gap:6px;margin-bottom:8px}',
     '.sn-sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;box-sizing:border-box;',
     'transition:transform .15s,border-color .15s}',
     '.sn-sw:hover{transform:scale(1.12)}',
@@ -439,7 +438,40 @@
   // ---------------------------------------------------------------- 齿轮面板
   var panel = null;
 
-  function buildSection(title, presets, state, onApply, onReset, defaultHex, btnLabel) {
+  function loadPresets(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      if (!raw) return fallback.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+      var arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || arr.length !== fallback.length) {
+        return fallback.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+      }
+      return fallback.map(function (p, i) {
+        var v = arr[i] || {};
+        return {
+          name: p.name,
+          color: /^#[0-9a-f]{6}$/i.test(v.color || '') ? v.color : p.color,
+          alpha: typeof v.alpha === 'number' ? Math.max(0, Math.min(1, v.alpha)) : 1
+        };
+      });
+    } catch (e) {
+      return fallback.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+    }
+  }
+
+  function savePresets(key, items) {
+    try {
+      localStorage.setItem(key, JSON.stringify(items.map(function (p) {
+        return { color: p.color, alpha: p.alpha };
+      })));
+    } catch (e) { /* 忽略 */ }
+  }
+
+  function clearPresets(key) {
+    try { localStorage.removeItem(key); } catch (e) { /* 忽略 */ }
+  }
+
+  function buildSection(title, presets, state, onApply, onReset, defaultHex, btnLabel, presetKey) {
     var wrap = document.createElement('div');
     wrap.className = 'sn-sec';
 
@@ -447,23 +479,13 @@
     label.textContent = title;
     wrap.appendChild(label);
 
+    var defaults = presets.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+    var items = loadPresets(presetKey, presets);
+    var selected = -1;
+
     var swatches = document.createElement('div');
     swatches.className = 'sn-swatches';
     var swNodes = [];
-    presets.forEach(function (p) {
-      var dot = document.createElement('span');
-      dot.className = 'sn-sw';
-      dot.style.background = p.color;
-      dot.title = p.name + ' ' + p.color;
-      dot.onclick = function () {
-        state.hex = p.color;
-        colorInput.value = p.color;
-        onApply();
-        sync();
-      };
-      swNodes.push({ node: dot, color: p.color });
-      swatches.appendChild(dot);
-    });
     wrap.appendChild(swatches);
 
     var row = document.createElement('div');
@@ -489,10 +511,61 @@
     valText.className = 'sn-val';
     wrap.appendChild(valText);
 
-    colorInput.oninput = function () { state.hex = colorInput.value; onApply(); sync(); };
+    function rgbaOf(p) { return hexToRgba(p.color, p.alpha); }
+
+    function renderSwatches() {
+      swatches.innerHTML = '';
+      swNodes = [];
+      items.forEach(function (p, i) {
+        var dot = document.createElement('span');
+        dot.className = 'sn-sw';
+        dot.style.background = rgbaOf(p);
+        dot.title = p.name + ' ' + rgbaOf(p);
+        dot.onclick = function () { selectPreset(i); };
+        swNodes.push(dot);
+        swatches.appendChild(dot);
+      });
+      sync();
+    }
+
+    function selectPreset(i) {
+      selected = i;
+      var p = items[i];
+      state.hex = p.color;
+      state.alpha = p.alpha;
+      colorInput.value = p.color;
+      alphaInput.value = String(Math.round(p.alpha * 100));
+      alphaText.textContent = alphaInput.value + '%';
+      onApply();
+      sync();
+    }
+
+    function updateSelectedSwatch() {
+      if (selected < 0 || !swNodes[selected]) return;
+      var p = items[selected];
+      swNodes[selected].style.background = rgbaOf(p);
+      swNodes[selected].title = p.name + ' ' + rgbaOf(p);
+    }
+
+    function persist() {
+      if (selected >= 0) {
+        items[selected].color = state.hex;
+        items[selected].alpha = state.alpha;
+        updateSelectedSwatch();
+        savePresets(presetKey, items);
+      }
+    }
+
+    colorInput.oninput = function () {
+      state.hex = colorInput.value;
+      persist();
+      onApply();
+      sync();
+    };
     alphaInput.oninput = function () {
       state.alpha = Number(alphaInput.value) / 100;
       alphaText.textContent = alphaInput.value + '%';
+      persist();
       onApply();
       updateVal();
     };
@@ -504,12 +577,11 @@
     function updateVal() { valText.textContent = rgbaText(); }
 
     function sync() {
-      swNodes.forEach(function (s) {
-        s.node.className = 'sn-sw' + (s.color.toLowerCase() === String(state.hex).toLowerCase() ? ' sn-on' : '');
+      swNodes.forEach(function (node, i) {
+        node.className = 'sn-sw' + (i === selected ? ' sn-on' : '');
       });
       updateVal();
     }
-    sync();
 
     var apply = document.createElement('button');
     apply.className = 'sn-apply';
@@ -524,18 +596,23 @@
     reset.textContent = '恢复默认';
     reset.onclick = function () {
       onReset();
+      items = defaults.map(function (p) { return { name: p.name, color: p.color, alpha: 1 }; });
+      selected = -1;
+      clearPresets(presetKey);
       state.hex = defaultHex;
       state.alpha = 1;
       colorInput.value = defaultHex;
       alphaInput.value = '100';
       alphaText.textContent = '100%';
-      sync();
+      renderSwatches();
     };
     foot.appendChild(reset);
     wrap.appendChild(foot);
 
+    renderSwatches();
     return { node: wrap };
   }
+
 
   function buildPanel() {
     panel = document.createElement('div');
@@ -547,13 +624,13 @@
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
       applyPaper(paperState);
-    }, resetPaper, '#2d2d2d', '应用');
+    }, resetPaper, '#2d2d2d', '应用', 'sn.paper.presets');
     panel.appendChild(paperSec.node);
 
     var fontSec = buildSection('便签文字颜色', FONT_PRESETS, fontState, function () {
       saveColor(KEY_FONT, fontState.hex, fontState.alpha);
       applyFont(fontState);
-    }, resetFont, '#ffffff', '应用');
+    }, resetFont, '#ffffff', '应用', 'sn.font.presets');
     panel.appendChild(fontSec.node);
 
     var split = document.createElement('div');
