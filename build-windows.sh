@@ -4,13 +4,13 @@
 #   bash build-windows.sh            # 默认 x64
 #   WIN_ARCH=arm64 bash build-windows.sh
 #
-# 产物: ./sticky-note-1.0.3-windows-<arch>.zip
+# 产物: ./sticky-note-<version>-windows-<arch>.zip
 # 依赖: curl, unzip, zip, rsvg-convert(若图标为 SVG)、本机原程序或 SN_APP_DIR
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="1.0.3"
+VERSION="$(tr -d '[:space:]' < "$PWD/VERSION")"
 APP_NAME="sticky note"
 ELECTRON_VER="13.6.9"
 WIN_ARCH="${WIN_ARCH:-x64}"
@@ -21,6 +21,7 @@ ELECTRON_ZIP="$CACHE/electron-v${ELECTRON_VER}-win32-${WIN_ARCH}.zip"
 ELECTRON_URL="https://github.com/electron/electron/releases/download/v${ELECTRON_VER}/electron-v${ELECTRON_VER}-win32-${WIN_ARCH}.zip"
 
 die() { echo "错误: $*" >&2; exit 1; }
+[ -n "$VERSION" ] || die "VERSION 文件为空或不存在"
 command -v curl >/dev/null || die "缺少 curl"
 command -v unzip >/dev/null || die "缺少 unzip"
 command -v zip >/dev/null || die "缺少 zip"
@@ -32,7 +33,7 @@ echo "[1/4] 生成补丁后的 app.asar（含托盘图标替换）"
 command -v rsvg-convert >/dev/null || die "需要 rsvg-convert 渲染图标"
 TRAY_PNG="$WORK/tray.png"
 rsvg-convert -w 32 -h 32 "$PWD/sticky-note.svg" -o "$TRAY_PNG"
-SN_EXTRA_TRAY="$TRAY_PNG" bash ./patch-asar.sh "$WORK/app.asar"
+SN_VERSION="$VERSION" SN_EXTRA_TRAY="$TRAY_PNG" bash ./patch-asar.sh "$WORK/app.asar"
 
 echo "[2/4] 准备 Windows Electron ${ELECTRON_VER} (${WIN_ARCH})"
 mkdir -p "$CACHE"
@@ -91,8 +92,18 @@ fs.writeFileSync(exePath, Buffer.from(exe.generate()));
 JSICO
 NODE_PATH="$WORK/petools/node_modules" node "$WORK/seticon.cjs" "$ROOT/sticky-note.exe" "$WORK/icon.ico" || die "写入 exe 图标失败"
 
-cat > "$ROOT/使用说明.txt" <<'TXT'
-sticky note 1.0.3（Windows 免安装版）
+# 只保留英文语言包
+find "$ROOT/locales" -maxdepth 1 -type f ! -name 'en-US.pak' -delete
+
+# 字体许可随包附带
+{
+  echo "LXGW WenKai — SIL Open Font License 1.1"
+  echo
+  cat "$PWD/fonts/OFL.txt"
+} > "$ROOT/LICENSES.txt"
+
+cat > "$ROOT/使用说明.txt" <<TXT
+sticky note ${VERSION}（Windows 免安装版）
 
 启动：双击 sticky-note.exe
 数据：%APPDATA%\todo-list

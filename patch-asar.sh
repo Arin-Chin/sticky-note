@@ -8,7 +8,7 @@
 #   - 删除打赏/捐赠功能（路由、窗口、支付接口、页面文件）
 #   - 删除全部 sourcemap
 #   - 清除作者与推广信息
-#   - 应用名改 sticky note，版本号 1.0.3，隐藏标题栏多余文字
+#   - 应用名改 sticky note，版本号取自 VERSION 文件，隐藏标题栏多余文字
 # 自检不通过会直接报错退出，不会写出半成品；替换逻辑幂等，可重复执行。
 
 set -euo pipefail
@@ -137,10 +137,10 @@ rep(appJs,            '"productName":"桌面便签"', '"productName":"sticky not
 rep(appJs,            '"description":"桌面便签 - ', '"description":"sticky note - ', 1);
 rep('/background.js', '"productName":"桌面便签"', '"productName":"sticky note"', 1);
 rep('/background.js', 'title:"桌面便签', 'title:"sticky note', null);
-// 版本号 V1.0.3
-rep('/package.json',  '"version": "0.2.3"', '"version": "1.0.3"', 1);
-rep(appJs,            '"version":"0.2.3"', '"version":"1.0.3"', 1);
-rep('/background.js', '"version":"0.2.3"', '"version":"1.0.3"', 1);
+// 版本号由 VERSION 文件提供
+rep('/package.json',  '"version": "0.2.3"', '"version": "' + process.env.SN_VERSION + '"', 1);
+rep(appJs,            '"version":"0.2.3"', '"version":"' + process.env.SN_VERSION + '"', 1);
+rep('/background.js', '"version":"0.2.3"', '"version":"' + process.env.SN_VERSION + '"', 1);
 
 // 2) 隐藏标题栏杂项文字（左上角应用名、右上角标语）
 const cssOld = get(appCss);
@@ -235,10 +235,10 @@ repAll('i.history.push({datetime:O(),oldContent:i.content,newContent:t,oldColor:
     'i.history.push({datetime:O(),oldContent:i.content,newContent:t,oldColor:i.color,newColor:r||i.color,oldNote:i.note||"",newNote:i.note||""})',
     1);
 
-// 6.9 启动时清一次 HTTP 磁盘缓存，避免 app:// 继续用旧的 index.html / notes-plus.js
+// 6.9 仅当版本变化时清 HTTP 缓存，避免每次启动都清空
 rep('/background.js',
     'n.app.on("ready",async()=>{',
-    'n.app.on("ready",async()=>{try{await n.session.defaultSession.clearCache()}catch(e){}',
+    'n.app.on("ready",async()=>{try{const fs=require("fs"),p=require("path"),f=p.join(n.app.getPath("userData"),"cache-version");let v="";try{v=fs.readFileSync(f,"utf8")}catch(e){}if(v!==n.app.getVersion()){await n.session.defaultSession.clearCache();fs.writeFileSync(f,n.app.getVersion())}}catch(e){}',
     null);
 
 // 6.10 随包附带 LXGW WenKai Regular 字体（不依赖系统安装）
@@ -303,6 +303,9 @@ console.log('  打包完成: ' + out + ' (' + fs.statSync(out).size + ' 字节, 
 PATCHEOF
 
 # ---------------------------------------------------------------- 入口
+SN_VERSION="${SN_VERSION:-$(cat "$(cd "$(dirname "$0")" && pwd)/VERSION" 2>/dev/null || true)}"
+[ -n "$SN_VERSION" ] || { echo "错误: 缺少 VERSION 版本号" >&2; exit 1; }
+export SN_VERSION
 OUT="${1:-app-patched.asar}"
 # 界面扩展脚本（齿轮菜单 + 置顶按钮），默认取仓库里的 notes-plus.js
 export SN_EXTRA_JS="${SN_EXTRA_JS:-$(cd "$(dirname "$0")" && pwd)/notes-plus.js}"

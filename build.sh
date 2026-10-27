@@ -3,7 +3,7 @@
 #
 #   bash build.sh
 #
-# 产物: ./sticky-note-1.0.3-uos-arm64.tar.gz
+# 产物: ./sticky-note-<version>-uos-<arch>.tar.gz
 # 解压即用，不依赖系统里是否装过原程序。
 #
 # 需要: rsvg-convert（仅当图标是 SVG 时，apt install librsvg2-bin）、本机已安装的原程序（或 SN_APP_DIR 指定）
@@ -12,7 +12,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 ICON_SVG="$PWD/sticky-note.svg"   # 固定图标，禁止通过参数更改
-VERSION="1.0.3"
+VERSION="$(tr -d '[:space:]' < "$PWD/VERSION")"
 APP_NAME="sticky note"
 SIZES="16 24 32 48 64 96 128 256 512"
 ARCH="$(dpkg --print-architecture)"
@@ -20,6 +20,7 @@ PKG_NAME="sticky-note-${VERSION}-uos-${ARCH}"
 OUT="$PWD/$PKG_NAME.tar.gz"
 
 die() { echo "错误: $*" >&2; exit 1; }
+[ -n "$VERSION" ] || die "VERSION 文件为空或不存在"
 
 [ -f "$ICON_SVG" ] || die "找不到图标文件: $ICON_SVG"
 case "${ICON_SVG##*.}" in
@@ -39,7 +40,7 @@ trap 'rm -rf "$WORK"' EXIT
 ROOT="$WORK/$PKG_NAME"
 
 echo "[1/4] 生成补丁后的 app.asar"
-SN_APP_DIR="$APP_DIR" bash patch-asar.sh "$WORK/app.asar" >/dev/null
+SN_VERSION="$VERSION" SN_APP_DIR="$APP_DIR" bash patch-asar.sh "$WORK/app.asar" >/dev/null
 echo "      $(stat -c%s "$WORK/app.asar") 字节"
 
 echo "[2/4] 准备图标: $ICON_SVG"
@@ -136,6 +137,8 @@ cp -a "$APP_DIR/." "$ROOT/"
 cp -f "$WORK/app.asar" "$ROOT/resources/app.asar"
 rm -f "$ROOT/resources/app.asar.orig"
 # 应用菜单用的顶层图标（asar 内的 logo.png 只影响窗口/托盘）
+# 只保留英文语言包（界面本身为中文，Electron 英文回退够用）
+find "$ROOT/locales" -maxdepth 1 -type f ! -name 'en-US.pak' -delete
 cp -f "$WORK/logo512.png" "$ROOT/logo.png"
 
 cat > "$ROOT/sticky-note.sh" <<'EOF'
@@ -173,6 +176,12 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache 
 echo "已加入应用菜单: sticky note（图标已装到 ~/.local/share/icons）"
 EOF
 chmod +x "$ROOT/install-desktop.sh"
+
+{
+  echo "LXGW WenKai — SIL Open Font License 1.1"
+  echo
+  cat "$PWD/fonts/OFL.txt"
+} > "$ROOT/LICENSES.txt"
 
 cat > "$ROOT/README.txt" <<EOF
 $APP_NAME $VERSION 免安装版

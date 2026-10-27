@@ -248,6 +248,7 @@
 
     // ---- 新增按钮
     '#app .nav .tools .sn-btn{width:20px;height:20px;cursor:pointer;border-radius:5px;',
+    'background:none;border:0;padding:0;line-height:1;color:var(--sn-ui);',
     'display:flex;align-items:center;justify-content:center;transition:background .18s,color .18s,transform .18s;',
     '-webkit-app-region:no-drag}',
     '#app .nav .tools .sn-btn:hover{background:rgba(150,150,150,.22)}',
@@ -285,6 +286,7 @@
     '.sn-sec>label{display:block;color:var(--sn-surface-fg,#fff);font-size:11px;margin-bottom:6px}',
     '.sn-swatches{display:flex;flex-wrap:nowrap;gap:6px;margin-bottom:8px}',
     '.sn-sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;box-sizing:border-box;',
+    'padding:0;appearance:none;',
     'transition:transform .15s,border-color .15s}',
     '.sn-sw:hover{transform:scale(1.12)}',
     '.sn-sw.sn-on{border-color:var(--sn-surface-fg,#fff);box-shadow:0 0 6px rgba(150,150,150,.4)}',
@@ -299,10 +301,6 @@
     'font-variant-numeric:tabular-nums}',
     '.sn-val{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;',
     'color:var(--sn-surface-fg,#fff);margin:-2px 0 8px;letter-spacing:.2px}',
-    '.sn-apply{width:100%;padding:6px;border:1px solid rgba(150,150,150,.3);border-radius:6px;',
-    'background:rgba(150,150,150,.12);color:var(--sn-surface-fg,#eaeaea);cursor:pointer;font-size:12px;',
-    'transition:background .18s}',
-    '.sn-apply:hover{background:rgba(150,150,150,.22)}',
     '.sn-reset{background:none;border:none;color:var(--sn-surface-fg,#fff);cursor:pointer;',
     'font-size:11px;padding:0}',
     '.sn-reset:hover{color:var(--sn-surface-fg,rgba(255,255,255,.85))}',
@@ -329,7 +327,11 @@
 
     // ---- emoji 替换成线性图标后的容器
     '.sn-emoji{display:inline-flex;align-items:center;justify-content:center;vertical-align:-.15em}',
-    '.sn-emoji svg{width:1em;height:1em}'
+    '.sn-emoji svg{width:1em;height:1em}',
+
+    // 键盘焦点可见
+    '#app .nav .tools i:focus-visible,#app .nav .tools .sn-btn:focus-visible,',
+    '.sn-sw:focus-visible{outline:2px solid currentColor;outline-offset:2px}'
   ].join('');
 
   // ---------------------------------------------------------------- 颜色工具
@@ -488,7 +490,7 @@
     try { localStorage.removeItem(key); } catch (e) { /* 忽略 */ }
   }
 
-  function buildSection(title, presets, state, onApply, onReset, defaultHex, btnLabel, presetKey) {
+  function buildSection(title, presets, state, onApply, onReset, defaultHex, presetKey) {
     var wrap = document.createElement('div');
     wrap.className = 'sn-sec';
 
@@ -534,10 +536,12 @@
       swatches.innerHTML = '';
       swNodes = [];
       items.forEach(function (p, i) {
-        var dot = document.createElement('span');
+        var dot = document.createElement('button');
+        dot.type = 'button';
         dot.className = 'sn-sw';
         dot.style.background = rgbaOf(p);
         dot.title = p.name + ' ' + rgbaOf(p);
+        dot.setAttribute('aria-label', p.name + ' ' + rgbaOf(p));
         dot.onclick = function () { selectPreset(i); };
         swNodes.push(dot);
         swatches.appendChild(dot);
@@ -596,20 +600,17 @@
 
     function sync() {
       swNodes.forEach(function (node, i) {
-        node.className = 'sn-sw' + (i === selected ? ' sn-on' : '');
+        var isSelected = i === selected;
+        node.className = 'sn-sw' + (isSelected ? ' sn-on' : '');
+        node.setAttribute('aria-pressed', String(isSelected));
       });
       updateVal();
     }
 
-    var apply = document.createElement('button');
-    apply.className = 'sn-apply';
-    apply.textContent = btnLabel || ('应用' + title);
-    apply.onclick = onApply;
-    wrap.appendChild(apply);
-
     var foot = document.createElement('div');
     foot.className = 'sn-hint';
     var reset = document.createElement('button');
+    reset.type = 'button';
     reset.className = 'sn-reset';
     reset.textContent = '恢复默认';
     reset.onclick = function () {
@@ -643,13 +644,13 @@
     var paperSec = buildSection('便签纸颜色', PAPER_PRESETS, paperState, function () {
       saveColor(KEY_PAPER, paperState.hex, paperState.alpha);
       applyPaper(paperState);
-    }, resetPaper, DEFAULT_PAPER_HEX, '应用', 'sn.paper.presets');
+    }, resetPaper, DEFAULT_PAPER_HEX, 'sn.paper.presets');
     panel.appendChild(paperSec.node);
 
     var fontSec = buildSection('便签文字颜色', FONT_PRESETS, fontState, function () {
       saveColor(KEY_FONT, fontState.hex, fontState.alpha);
       applyFont(fontState);
-    }, resetFont, DEFAULT_FONT_HEX, '应用', 'sn.font.presets');
+    }, resetFont, DEFAULT_FONT_HEX, 'sn.font.presets');
     panel.appendChild(fontSec.node);
 
     var split = document.createElement('div');
@@ -662,9 +663,12 @@
     // 开机自启（原托盘菜单项移到这里，放在导出前）
     var autoOn = false;
     var autoBtn = document.createElement('button');
+    autoBtn.type = 'button';
+    autoBtn.setAttribute('role', 'checkbox');
     function renderAuto() {
       autoBtn.innerHTML = '<span class="sn-auto-mark' + (autoOn ? ' sn-on' : '') + '">' +
         svg('check', 10) + '</span><span>开机自启</span>';
+      autoBtn.setAttribute('aria-checked', String(autoOn));
     }
     renderAuto();
     autoBtn.onclick = function () {
@@ -679,9 +683,11 @@
     });
 
     var exportBtn = document.createElement('button');
+    exportBtn.type = 'button';
     exportBtn.innerHTML = svg('download', 16) + '<span>导出到 Excel</span>';
     exportBtn.onclick = function () { hidePanel(); ipc.invoke('exportData'); };
     var guideBtn = document.createElement('button');
+    guideBtn.type = 'button';
     guideBtn.innerHTML = svg('book', 16) + '<span>使用指南</span>';
     guideBtn.onclick = function () { hidePanel(); ipc.invoke('openAboutWindow'); };
     menu.appendChild(autoBtn);
@@ -701,20 +707,43 @@
   // ---------------------------------------------------------------- 工具条
   var gearBtn = null;
 
+  // 原程序工具图标是 <i>，补键盘语义且只绑定一次
+  function makeIconButton(element) {
+    if (!element || element.dataset.snIconButton) return;
+    element.dataset.snIconButton = '1';
+    element.setAttribute('role', 'button');
+    element.setAttribute('tabindex', '0');
+    element.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      element.click();
+    });
+  }
+
   function inject() {
     var tools = document.querySelector('#app .nav .tools');
     if (!tools) return;
+
+    Array.prototype.forEach.call(tools.querySelectorAll('i.iconfont'), function (icon) {
+      makeIconButton(icon);
+      var label = icon.getAttribute('title');
+      if (label) icon.setAttribute('aria-label', label);
+    });
+
     if (tools.querySelector('.sn-gear')) return;
 
     // 与「隐藏到托盘」「锁定」完全同构：iconfont + ::before mask，颜色由父级 color 决定
-    var pin = document.createElement('i');
+    var pin = document.createElement('button');
+    pin.type = 'button';
     pin.className = 'iconfont sn-btn sn-pin';
     pin.title = '置顶（始终在最前）';
+    pin.setAttribute('aria-label', '置顶（始终在最前）');
     var isPinned = false;
     function setPinned(on) {
       isPinned = !!on;
       pin.classList.toggle('sn-active', isPinned);
       pin.title = isPinned ? '取消置顶' : '置顶（始终在最前）';
+      pin.setAttribute('aria-pressed', String(isPinned));
     }
     pin.onclick = function () {
       // 先同步翻转图标，点击立即有视觉反馈；再以主进程返回值为准纠正
@@ -725,9 +754,11 @@
     };
     ipc.invoke('getAlwaysOnTop').then(setPinned);
 
-    var gear = document.createElement('i');
+    var gear = document.createElement('button');
+    gear.type = 'button';
     gear.className = 'iconfont sn-btn sn-gear';
     gear.title = '设置';
+    gear.setAttribute('aria-label', '设置');
     gear.onclick = function (e) {
       e.stopPropagation();
       togglePanel();
@@ -889,7 +920,9 @@
       item.note = text;
       item.modified_datetime = timestamp;
 
-      fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+      var tempFile = dataFile + '.tmp';
+      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+      fs.renameSync(tempFile, dataFile);
       updateVmNote(vm, index, item);
     });
   }
@@ -1028,14 +1061,24 @@
     setupDetail();
     syncTodoPresets();
     var app = document.getElementById('app');
-    if (app && typeof MutationObserver !== 'undefined') {
-      new MutationObserver(function () {
-        inject();
-        deEmoji(app);
-        setupDetail();
-        syncTodoPresets();
-      }).observe(app, { childList: true, subtree: true });
+    if (!app || typeof MutationObserver === 'undefined') return;
+
+    var refreshPending = false;
+    function refreshUi() {
+      inject();
+      deEmoji(app);
+      setupDetail();
+      syncTodoPresets();
     }
+    function scheduleRefresh() {
+      if (refreshPending) return;
+      refreshPending = true;
+      requestAnimationFrame(function () {
+        refreshPending = false;
+        refreshUi();
+      });
+    }
+    new MutationObserver(scheduleRefresh).observe(app, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'loading') {
