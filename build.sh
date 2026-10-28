@@ -95,9 +95,10 @@ cat > "$ROOT/install-desktop.sh" <<'EOF'
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 APPS="$HOME/.local/share/applications"
-ICONS="$HOME/.local/share/icons/hicolor/512x512/apps"
-mkdir -p "$APPS" "$ICONS"
-cp -f "$DIR/logo.png" "$ICONS/sticky-note.png"
+ICON="$HOME/.local/share/icons/sticky-note.png"
+mkdir -p "$APPS" "$HOME/.local/share/icons"
+cp -f "$DIR/logo.png" "$ICON"
+# 用绝对路径，避免 UKUI/麒麟菜单找不到主题图标名
 cat > "$APPS/sticky-note.desktop" <<DESK
 [Desktop Entry]
 Type=Application
@@ -105,13 +106,13 @@ Name=sticky note
 Comment=简洁高效的本地便签
 Exec="$DIR/todo-list" %U
 Terminal=false
-Icon=sticky-note
+Icon=$ICON
 StartupWMClass=sticky note
 Categories=Office;
 DESK
 if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$APPS" || true; fi
-if command -v gtk-update-icon-cache >/dev/null 2>&1; then gtk-update-icon-cache -q -t -f "$HOME/.local/share/icons/hicolor" || true; fi
-echo "已加入应用菜单: sticky note（图标已装到 ~/.local/share/icons）"
+echo "已加入应用菜单: sticky note（图标: $ICON）"
+echo "若菜单未刷新，请注销后重新登录。"
 EOF
 chmod +x "$ROOT/install-desktop.sh"
 
