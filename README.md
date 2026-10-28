@@ -3,6 +3,7 @@
 本地便签，免安装，解压即用。
 
 - UOS / Deepin arm64：`sticky-note-1.0.4-uos-arm64.tar.gz`
+- LoongArch64（龙芯平台，loongarch64）：`sticky-note-1.0.4-linux-loong64.tar.gz`
 - Windows x64：`sticky-note-1.0.4-windows-x64.zip`
 - 版本：`1.0.4`
 
@@ -25,6 +26,16 @@ cd sticky-note-1.0.4-uos-arm64
 ```
 
 可选加入应用菜单：`./install-desktop.sh`
+
+**Linux LoongArch64**
+
+```bash
+tar xzf sticky-note-1.0.4-linux-loong64.tar.gz
+cd sticky-note-1.0.4-linux-loong64
+./sticky-note.sh
+```
+
+运行时使用 Loongnix Electron 13.6.9（loongarch64），最高依赖 GLIBC 2.27。
 
 **Windows**
 
